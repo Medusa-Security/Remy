@@ -1,0 +1,5 @@
+# Remy's own scan exclusions
+# Test files contain intentional vulnerabilities for testing — skip them
+tests/
+.remy/
+fix_prompt*.md

@@ -1,0 +1,61 @@
+# Remy Auth/Logic Bypass Pattern Rules
+# Used by auth_bypass_scanner.py
+
+version: "1.0"
+
+rules:
+  - name: "JWT algorithm=none bypass"
+    pattern: 'algorithm\s*=\s*[''"]none[''"]|algorithms\s*=\s*\[[''"]none[''"]\]'
+    severity: CRITICAL
+    cwe: "CWE-347"
+    remediation: >
+      Never allow algorithm=none. Enforce a specific algorithm (RS256, ES256, HS256).
+      Set verify_signature=True and verify_exp=True in JWT decode options.
+
+  - name: "JWT verify=False bypass"
+    pattern: 'options\s*=\s*\{[^}]*[''"]verify[''"]?\s*:\s*False|verify\s*=\s*False'
+    severity: CRITICAL
+    cwe: "CWE-347"
+    remediation: "Always verify JWT signatures. Remove verify=False."
+
+  - name: "Non-constant-time secret comparison"
+    pattern: '(?:token|secret|password|hash|sig|hmac)\s*==\s*\S|\S\s*==\s*(?:token|secret|password|hash)'
+    severity: HIGH
+    cwe: "CWE-208"
+    remediation: "Use hmac.compare_digest(a, b) for constant-time comparison of secrets."
+
+  - name: "Client-controlled admin flag in request params"
+    pattern: 'request\.(?:args|params|GET)\.get\s*\(\s*[''"](?:admin|is_admin|role|superuser)[''"]'
+    severity: CRITICAL
+    cwe: "CWE-639"
+    remediation: >
+      Never trust client-supplied privilege flags. Load roles from server-side
+      session or signed token only.
+
+  - name: "Authorization role from request body"
+    pattern: 'request\.(?:json|form|POST|data)\s*(?:\[|\.get\s*\(\s*)[''"](?:role|is_admin|admin|permission)[''"]'
+    severity: HIGH
+    cwe: "CWE-602"
+    remediation: >
+      Do not accept role from request body. Load from authenticated session or JWT payload.
+
+  - name: "IDOR — object lookup by client-supplied ID"
+    pattern: '\.objects\.get\s*\(\s*(?:id|pk)\s*=|\.find_by_id\s*\(|\.findById\s*\('
+    severity: HIGH
+    cwe: "CWE-639"
+    remediation: >
+      Add ownership filter: Model.objects.get(id=obj_id, owner=request.user).
+      Never trust client-supplied IDs alone.
+
+  - name: "Hardcoded admin backdoor password comparison"
+    pattern: '(?:password|passwd)\s*==\s*[''"](?:admin|password|123456|root|letmein|test)[''"]'
+    severity: CRITICAL
+    cwe: "CWE-798"
+    remediation: "Remove hardcoded credentials. Use hashed passwords (bcrypt/argon2)."
+
+  - name: "Insecure cookie without Secure/HttpOnly flags"
+    pattern: 'set_cookie\s*\([^)]+\)|res\.cookie\s*\([^)]*(?!secure|httpOnly)[^)]*\)'
+    severity: MEDIUM
+    cwe: "CWE-614"
+    remediation: >
+      Set Secure=True, HttpOnly=True, and SameSite=Strict on all sensitive cookies.

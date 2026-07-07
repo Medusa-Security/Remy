@@ -1,0 +1,104 @@
+# Remy API Route Pattern Rules
+# Used by api_surface_scanner.py to identify route definitions and
+# check for missing authentication / rate limiting.
+
+version: "1.0"
+
+frameworks:
+  - name: flask
+    description: "Flask and Flask Blueprint route decorators"
+    route_pattern: '@(?:app|blueprint|bp|\w+)\.route\s*\(\s*[''"]([^''"]+)[''"]'
+    auth_indicators:
+      - "@login_required"
+      - "@token_required"
+      - "@requires_auth"
+      - "@jwt_required"
+      - "@permission_required"
+    rate_limit_indicators:
+      - "@limiter."
+      - "flask_limiter"
+      - "slowapi"
+
+  - name: fastapi
+    description: "FastAPI router/app decorators"
+    route_pattern: '@(?:router|app)\.(?:get|post|put|delete|patch|options|head)\s*\(\s*[''"]([^''"]+)[''"]'
+    auth_indicators:
+      - "Depends(get_current_user"
+      - "Depends(verify_token"
+      - "Depends(authenticate"
+      - "oauth2_scheme"
+    rate_limit_indicators:
+      - "slowapi"
+      - "RateLimit"
+      - "rate_limit"
+
+  - name: express
+    description: "Express.js route handlers"
+    route_pattern: '(?:app|router)\.(?:get|post|put|delete|patch|use)\s*\(\s*[''"`]([^''"`]+)[''"`]'
+    auth_indicators:
+      - "requireAuth"
+      - "isAuthenticated"
+      - "verifyToken"
+      - "passport.authenticate"
+      - "authMiddleware"
+      - "authenticate("
+    rate_limit_indicators:
+      - "express-rate-limit"
+      - "rateLimit("
+      - "limiter("
+
+  - name: nestjs
+    description: "NestJS controller decorators"
+    route_pattern: '@(?:Get|Post|Put|Delete|Patch|Options)\s*\(\s*[''"]?([^''")\s]+)?[''"]?\s*\)'
+    auth_indicators:
+      - "@UseGuards(AuthGuard"
+      - "@UseGuards(JwtAuthGuard"
+      - "@UseGuards(RolesGuard"
+    rate_limit_indicators:
+      - "@Throttle("
+      - "@UseGuards(ThrottlerGuard"
+
+  - name: django
+    description: "Django URL patterns"
+    route_pattern: '(?:path|re_path)\s*\(\s*[''"]([^''"]+)[''"]'
+    auth_indicators:
+      - "@login_required"
+      - "@permission_required"
+      - "IsAuthenticated"
+      - "TokenAuthentication"
+    rate_limit_indicators:
+      - "throttle_classes"
+      - "django-ratelimit"
+      - "@ratelimit("
+
+sensitive_path_keywords:
+  - auth
+  - login
+  - logout
+  - register
+  - signup
+  - password
+  - reset
+  - forgot
+  - verify
+  - upload
+  - webhook
+  - otp
+  - token
+  - mfa
+  - admin
+  - pay
+  - checkout
+  - billing
+
+public_path_prefixes:
+  - /health
+  - /status
+  - /docs
+  - /redoc
+  - /openapi
+  - /metrics
+  - /favicon
+  - /robots.txt
+  - /static/
+  - /assets/

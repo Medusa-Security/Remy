@@ -1,0 +1,58 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-publish:
+    name: Build and Publish to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # Required for OIDC trusted publishing
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install build twine hatchling
+
+      - name: Install dev dependencies for tests
+        run: pip install -e ".[dev]"
+
+      - name: Run tests before publishing
+        run: pytest tests/ -v --tb=short
+
+      - name: Build distribution
+        run: python -m build
+
+      - name: Verify distribution
+        run: twine check dist/*
+
+      - name: Publish to PyPI (OIDC trusted publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## Remy Agent ${{ github.ref_name }}
+
+            Built by [Medusa Security](https://github.com/Medusa-Security) · Maintained by [Abhay Gupta](https://github.com/abhay-1310)
+
+            Install:
+            ```bash
+            pip install remy-agent==${{ github.ref_name }}
+            ```

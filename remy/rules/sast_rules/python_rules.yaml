@@ -1,0 +1,111 @@
+# Remy SAST Rules — Python
+# These supplement the AST-based rules in sast_python.py
+
+version: "1.0"
+language: python
+
+rules:
+  - id: PY001
+    name: "Unsafe eval() with dynamic argument"
+    pattern: 'eval\s*\([^)]+[a-zA-Z_]'
+    severity: HIGH
+    cwe: "CWE-78"
+    remediation: "Replace eval() with ast.literal_eval() or a safe alternative."
+
+  - id: PY002
+    name: "Unsafe exec() with dynamic argument"
+    pattern: 'exec\s*\(\s*(?![\'"]{1}[^\'"]*[\'"]{1}\s*\))'
+    severity: HIGH
+    cwe: "CWE-78"
+    remediation: "Avoid exec() with user-controlled input entirely."
+
+  - id: PY003
+    name: "pickle.loads on potentially untrusted data"
+    pattern: 'pickle\.loads?\s*\('
+    severity: HIGH
+    cwe: "CWE-502"
+    remediation: "Use JSON or msgpack for serialization. Never unpickle untrusted data."
+
+  - id: PY004
+    name: "subprocess with shell=True"
+    pattern: 'subprocess\.\w+\s*\([^)]*shell\s*=\s*True'
+    severity: CRITICAL
+    cwe: "CWE-78"
+    remediation: "Use shell=False and pass arguments as a list."
+
+  - id: PY005
+    name: "SQL injection via string formatting"
+    pattern: '\.execute\s*\(\s*[''"].*%[sd].*[''"]|\.execute\s*\(\s*f[''"]'
+    severity: HIGH
+    cwe: "CWE-89"
+    remediation: "Use parameterized queries: cursor.execute('SELECT ? WHERE id=?', (val,))"
+
+  - id: PY006
+    name: "Use of random for security tokens"
+    pattern: 'random\.(?:random|randint|choice|token_hex)\s*\('
+    severity: MEDIUM
+    cwe: "CWE-338"
+    remediation: "Use secrets.token_hex() or secrets.token_urlsafe() for security tokens."
+
+  - id: PY007
+    name: "MD5 hash usage"
+    pattern: 'hashlib\.md5\s*\('
+    severity: MEDIUM
+    cwe: "CWE-327"
+    remediation: "Use SHA-256 or better for data integrity. Use bcrypt/argon2 for passwords."
+
+  - id: PY008
+    name: "SHA1 hash usage"
+    pattern: 'hashlib\.sha1\s*\('
+    severity: MEDIUM
+    cwe: "CWE-327"
+    remediation: "SHA1 is cryptographically broken. Use SHA-256 or SHA-3."
+
+  - id: PY009
+    name: "yaml.load without SafeLoader"
+    pattern: 'yaml\.load\s*\(\s*(?!.*SafeLoader)'
+    severity: HIGH
+    cwe: "CWE-502"
+    remediation: "Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader)."
+
+  - id: PY010
+    name: "Broad exception silently swallowed"
+    pattern: 'except\s*(?:Exception|:)\s*:\s*\n\s*pass'
+    severity: LOW
+    cwe: "CWE-390"
+    remediation: "Log the exception or handle specifically. Never silently pass."
+
+  - id: PY011
+    name: "assert used for security check"
+    pattern: 'assert\s+.*(?:auth|admin|permission|role|user|access|login)'
+    severity: MEDIUM
+    cwe: "CWE-617"
+    remediation: "Replace assert with explicit if/raise. assert is stripped in optimized mode."
+
+  - id: PY012
+    name: "Hardcoded credential in variable"
+    pattern: '(?:password|secret|api_key|token)\s*=\s*[''"][^''"]{8,}[''"]'
+    severity: HIGH
+    cwe: "CWE-798"
+    remediation: "Move to environment variable: os.environ['SECRET_KEY']"
+
+  - id: PY013
+    name: "Flask debug mode enabled"
+    pattern: 'app\.run\s*\([^)]*debug\s*=\s*True'
+    severity: HIGH
+    cwe: "CWE-94"
+    remediation: "Never run Flask with debug=True in production. Use FLASK_ENV=production."
+
+  - id: PY014
+    name: "Insecure SSL/TLS verify=False"
+    pattern: 'verify\s*=\s*False'
+    severity: HIGH
+    cwe: "CWE-295"
+    remediation: "Always verify SSL certificates. Remove verify=False."
+
+  - id: PY015
+    name: "tempfile.mktemp usage (TOCTOU)"
+    pattern: 'tempfile\.mktemp\s*\('
+    severity: MEDIUM
+    cwe: "CWE-377"
+    remediation: "Use tempfile.mkstemp() or tempfile.NamedTemporaryFile() instead."

@@ -1,0 +1,100 @@
+# .remyignore — Tell Remy which paths to skip during scanning.
+# Copy this file to .remyignore in your project root and customize it.
+# Uses the same syntax as .gitignore.
+#
+# Remy also respects your existing .gitignore automatically.
+
+# ── Package manager dependency directories ────────────────────────────────────
+node_modules/
+vendor/
+.vendor/
+bower_components/
+
+# ── Python build/runtime artifacts ───────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+ENV/
+.tox/
+*.egg-info/
+.eggs/
+site-packages/
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+target/
+_build/
+.next/
+.nuxt/
+.output/
+
+# ── Generated / minified files ────────────────────────────────────────────────
+*.min.js
+*.min.css
+*.bundle.js
+*.bundle.css
+*.map
+*.chunk.js
+
+# ── Test fixtures with intentionally vulnerable code ─────────────────────────
+tests/fixtures/
+spec/fixtures/
+__fixtures__/
+
+# ── Lock files (noise for scanner, no actionable findings) ───────────────────
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+Pipfile.lock
+Gemfile.lock
+go.sum
+composer.lock
+
+# ── IDE / editor files ────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.suo
+*.user
+
+# ── Secrets and credentials (never commit these — scan separately if needed) ──
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa
+id_ed25519
+.netrc
+.npmrc
+
+# ── Coverage and test output ──────────────────────────────────────────────────
+.coverage
+htmlcov/
+coverage.xml
+*.lcov
+junit.xml
+test-results/
+.pytest_cache/
+
+# ── OS artifacts ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Remy own output (prevent scanning the scanner's output) ──────────────────
+.remy/
+fix_prompt*.md

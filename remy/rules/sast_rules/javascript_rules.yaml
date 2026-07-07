@@ -1,0 +1,90 @@
+# Remy SAST Rules — JavaScript / TypeScript
+
+version: "1.0"
+language: javascript,typescript
+
+rules:
+  - id: JS001
+    name: "eval() with dynamic argument"
+    pattern: '\beval\s*\(\s*(?![''"`])'
+    severity: HIGH
+    cwe: "CWE-78"
+    remediation: "Never use eval() with user-supplied or dynamic input."
+
+  - id: JS002
+    name: "child_process.exec with string concatenation"
+    pattern: 'child_process\.exec\s*\(\s*[^,)]*\+'
+    severity: CRITICAL
+    cwe: "CWE-78"
+    remediation: "Use child_process.execFile() with an argument array instead of exec()."
+
+  - id: JS003
+    name: "innerHTML assignment (XSS risk)"
+    pattern: '\.innerHTML\s*='
+    severity: HIGH
+    cwe: "CWE-79"
+    remediation: "Use textContent or sanitize with DOMPurify before setting innerHTML."
+
+  - id: JS004
+    name: "document.write() (XSS risk)"
+    pattern: 'document\.write\s*\('
+    severity: MEDIUM
+    cwe: "CWE-79"
+    remediation: "Avoid document.write(). Use DOM APIs or a templating library."
+
+  - id: JS005
+    name: "Prototype pollution pattern"
+    pattern: '__proto__\s*\[|constructor\s*\.\s*prototype\s*\['
+    severity: HIGH
+    cwe: "CWE-1321"
+    remediation: "Validate keys before object assignment. Use Object.create(null) for safe maps."
+
+  - id: JS006
+    name: "Hardcoded secret in JS/TS source"
+    pattern: '(?:apiKey|api_key|secret|password|token)\s*[:=]\s*[''"`][A-Za-z0-9+/=_\-]{16,}[''"`]'
+    severity: HIGH
+    cwe: "CWE-798"
+    remediation: "Move to environment variables (process.env.SECRET). Never commit secrets."
+
+  - id: JS007
+    name: "Math.random() for security token"
+    pattern: 'Math\.random\s*\(\s*\)'
+    severity: MEDIUM
+    cwe: "CWE-338"
+    remediation: "Use crypto.randomBytes() or crypto.randomUUID() for security tokens."
+
+  - id: JS008
+    name: "SQL injection via template literal"
+    pattern: '\.query\s*\(\s*`[^`]*\$\{'
+    severity: HIGH
+    cwe: "CWE-89"
+    remediation: "Use parameterized queries or an ORM. Never interpolate variables into SQL."
+
+  - id: JS009
+    name: "Insecure cookie without Secure/HttpOnly"
+    pattern: 'res\.cookie\s*\([^)]*\)'
+    severity: MEDIUM
+    cwe: "CWE-614"
+    remediation: "Set secure: true, httpOnly: true, sameSite: 'strict' on all auth cookies."
+
+  - id: JS010
+    name: "JSON.parse on untrusted input without try/catch"
+    pattern: 'JSON\.parse\s*\('
+    severity: LOW
+    cwe: "CWE-20"
+    remediation: "Wrap JSON.parse() in try/catch and validate the parsed structure."
+
+  - id: JS011
+    name: "Missing CSRF protection on state-changing route"
+    pattern: 'app\.(?:post|put|delete|patch)\s*\([^)]*\)'
+    severity: MEDIUM
+    cwe: "CWE-352"
+    notes: "Check that CSRF middleware (csurf, helmet, etc.) is applied globally."
+    remediation: "Apply CSRF protection middleware to all state-changing endpoints."
+
+  - id: JS012
+    name: "Disabled SSL verification in Axios/fetch"
+    pattern: 'rejectUnauthorized\s*:\s*false'
+    severity: HIGH
+    cwe: "CWE-295"
+    remediation: "Never disable SSL certificate verification in production code."
