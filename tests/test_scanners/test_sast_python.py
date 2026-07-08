@@ -38,7 +38,9 @@ class TestPythonSastScanner:
     def test_detects_subprocess_shell_true_with_dynamic_cmd(self, scanner):
         code = "import subprocess\nsubprocess.run(cmd, shell=True)"
         findings = run(scanner.scan_file(Path("test.py"), code, "python"))
-        assert any("Shell Injection" in f.title or "shell" in f.title.lower() for f in findings)
+        assert any(
+            "Shell Injection" in f.title or "shell" in f.title.lower() for f in findings
+        )
         assert any(f.severity == Severity.CRITICAL for f in findings)
 
     def test_ignores_subprocess_shell_true_with_literal(self, scanner):
@@ -75,7 +77,10 @@ class TestPythonSastScanner:
     def test_detects_broad_except_pass(self, scanner):
         code = "try:\n    risky()\nexcept Exception:\n    pass"
         findings = run(scanner.scan_file(Path("test.py"), code, "python"))
-        assert any("Broad Exception" in f.title or "exception" in f.title.lower() for f in findings)
+        assert any(
+            "Broad Exception" in f.title or "exception" in f.title.lower()
+            for f in findings
+        )
 
     def test_detects_assert_auth_check(self, scanner):
         code = "assert user.is_admin, 'Access denied'"
@@ -85,7 +90,9 @@ class TestPythonSastScanner:
     def test_detects_hardcoded_credential(self, scanner):
         code = 'api_key = "sk-real-production-key-123456"'
         findings = run(scanner.scan_file(Path("test.py"), code, "python"))
-        assert any("Credential" in f.title or "credential" in f.title.lower() for f in findings)
+        assert any(
+            "Credential" in f.title or "credential" in f.title.lower() for f in findings
+        )
 
     def test_ignores_non_python_files(self, scanner):
         code = "const x = eval(input);"
@@ -96,4 +103,3 @@ class TestPythonSastScanner:
         code = "def broken(:"
         findings = run(scanner.scan_file(Path("test.py"), code, "python"))
         assert findings == []  # Should not raise, just return empty
-

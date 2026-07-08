@@ -40,7 +40,7 @@ class TestSecretsScanner:
         assert any("AWS" in f.title for f in findings)
 
     def test_detects_github_pat(self, scanner):
-        content = 'token = "ghp_' + 'A' * 36 + '"'
+        content = 'token = "ghp_' + "A" * 36 + '"'
         findings = run(scanner.scan_file(Path("test.py"), content, "python"))
         assert any("GitHub" in f.title for f in findings)
 
@@ -86,7 +86,9 @@ class TestSecretsScanner:
         # High-entropy string on a line with a secret-context variable name
         content = 'api_key = "xK9mP2qR5vN8wL3jT6uY1bE4hA7cF0dG"'
         findings = run(scanner.scan_file(Path("test.py"), content, "python"))
-        assert any("entropy" in f.title.lower() or "Entropy" in f.title for f in findings)
+        assert any(
+            "entropy" in f.title.lower() or "Entropy" in f.title for f in findings
+        )
 
     def test_scan_file_is_language_agnostic(self, scanner):
         """Secrets scanner should work on any language."""
@@ -95,4 +97,3 @@ class TestSecretsScanner:
         findings_py = run(scanner.scan_file(Path("test.py"), content, "python"))
         assert len(findings_js) > 0
         assert len(findings_py) > 0
-

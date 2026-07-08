@@ -14,7 +14,6 @@ from remy.report.models import Finding, Severity
 from remy.utils.hashing import fingerprint_finding
 from .base import Scanner
 
-
 SYSTEM_PROMPT = """\
 You are a security-focused code reviewer with deep expertise in application security.
 Analyze the provided code and identify:

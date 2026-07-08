@@ -52,7 +52,9 @@ def list_users():
 @app.route("/ping")
 def ping():
     host = request.args.get("host", "localhost")
-    result = subprocess.run(f"ping -c 1 {host}", shell=True, capture_output=True)  # Shell injection
+    result = subprocess.run(
+        f"ping -c 1 {host}", shell=True, capture_output=True
+    )  # Shell injection
     return result.stdout.decode()
 
 
@@ -118,7 +120,9 @@ def login():
     conn = get_db()
     cursor = conn.cursor()
     # Also SQL injection here:
-    cursor.execute(f"SELECT * FROM users WHERE username = '{username}' AND password = '{pwd}'")
+    cursor.execute(
+        f"SELECT * FROM users WHERE username = '{username}' AND password = '{pwd}'"
+    )
     user = cursor.fetchone()
     if user:
         return jsonify({"token": str(random.random())})  # Weak token
@@ -151,4 +155,3 @@ def charge_card(card, amount):
 
 if __name__ == "__main__":
     app.run(debug=True)  # Debug mode in production
-

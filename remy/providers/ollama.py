@@ -36,9 +36,11 @@ class OllamaProvider(Provider):
                         ModelInfo(
                             id=name,
                             name=name,
-                            notes=f"Local model, size: {size_gb}"
-                            if size_gb
-                            else "Local model",
+                            notes=(
+                                f"Local model, size: {size_gb}"
+                                if size_gb
+                                else "Local model"
+                            ),
                         )
                     )
                 return models

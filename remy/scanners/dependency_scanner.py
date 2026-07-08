@@ -16,7 +16,6 @@ from remy.report.models import Finding, Severity
 from remy.utils.hashing import fingerprint_finding
 from .base import Scanner
 
-
 OSV_API_URL = "https://api.osv.dev/v1/query"
 MAX_CONCURRENT_REQUESTS = 10
 

@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Iterator
 import fnmatch
 
-
 SKIP_DIRS = {
     ".git",
     ".svn",

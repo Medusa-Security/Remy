@@ -68,8 +68,19 @@ class TestJsonExport:
         report = make_report()
         data = json.loads(export_json(report))
         f = data["findings"][0]
-        required = ["id", "scanner", "severity", "cwe", "file", "line_start",
-                    "line_end", "title", "description", "remediation_hint", "confidence"]
+        required = [
+            "id",
+            "scanner",
+            "severity",
+            "cwe",
+            "file",
+            "line_start",
+            "line_end",
+            "title",
+            "description",
+            "remediation_hint",
+            "confidence",
+        ]
         for field in required:
             assert field in f, f"Missing field: {field}"
 
@@ -86,4 +97,3 @@ class TestJsonExport:
         data = json.loads(export_json(report))
         assert data["findings"] == []
         assert data["summary"]["total"] == 0
-

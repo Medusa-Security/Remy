@@ -18,7 +18,6 @@ from rich.text import Text
 from .schema import Config, ScanDefaults
 from .store import save_config, set_api_key, get_api_key, load_config
 
-
 console = Console()
 
 PROVIDER_NOTES = {
@@ -249,9 +248,11 @@ def run_wizard() -> Optional[Config]:
         model = questionary.autocomplete(
             "Step 3/5 — Select or type a model ID:",
             choices=model_ids,
-            default=default_model
-            if default_model in model_ids
-            else (model_ids[0] if model_ids else default_model),
+            default=(
+                default_model
+                if default_model in model_ids
+                else (model_ids[0] if model_ids else default_model)
+            ),
             validate=lambda x: bool(x.strip()) or "Model ID cannot be empty",
         ).ask()
     else:
@@ -349,9 +350,9 @@ def run_wizard() -> Optional[Config]:
         scan_defaults=ScanDefaults(
             deep=deep or False,
             max_file_size_kb=max_file_size_kb,
-            respect_gitignore=respect_gitignore
-            if respect_gitignore is not None
-            else True,
+            respect_gitignore=(
+                respect_gitignore if respect_gitignore is not None else True
+            ),
         ),
     )
 

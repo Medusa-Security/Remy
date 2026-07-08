@@ -18,7 +18,6 @@ from rich.rule import Rule
 from rich.padding import Padding
 from .models import ScanReport, Severity
 
-
 LANG_MAP = {
     ".py": "python",
     ".js": "javascript",

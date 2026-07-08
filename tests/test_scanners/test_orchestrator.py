@@ -34,6 +34,7 @@ class TestScanOrchestrator:
     def test_scan_detects_findings_in_fixture(self):
         """Smoke test: scan the vulnerable fixture and expect findings."""
         import os
+
         fixture_path = Path(__file__).parent.parent / "fixtures" / "vulnerable_app"
         if not fixture_path.exists():
             pytest.skip("Fixture not found")
@@ -77,10 +78,10 @@ class TestScanOrchestrator:
 
     def test_sorting_critical_first(self, tmp_path):
         code = (
-            'import pickle\n'
-            'pickle.loads(data)\n'
+            "import pickle\n"
+            "pickle.loads(data)\n"
             'low_var = "minor issue"\n'
-            'subprocess.run(cmd, shell=True)\n'
+            "subprocess.run(cmd, shell=True)\n"
         )
         (tmp_path / "test.py").write_text(code)
         cfg = make_config()
@@ -92,4 +93,3 @@ class TestScanOrchestrator:
             first_sev = report.findings[0].severity.sort_order
             last_sev = report.findings[-1].severity.sort_order
             assert first_sev <= last_sev
-

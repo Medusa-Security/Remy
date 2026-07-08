@@ -29,6 +29,7 @@ class TestConfigStore:
         if not path.exists():
             return None
         import json as _json
+
         try:
             raw = tomlkit.loads(path.read_text(encoding="utf-8"))
             # Deep-convert tomlkit wrappers to plain Python types for Pydantic
@@ -86,9 +87,19 @@ class TestConfigStore:
 
     def test_save_all_providers_valid(self, tmp_path):
         """Each supported provider value should survive a roundtrip."""
-        for provider in ["openrouter", "groq", "openai", "anthropic", "xai", "nvidia_nim", "ollama"]:
+        for provider in [
+            "openrouter",
+            "groq",
+            "openai",
+            "anthropic",
+            "xai",
+            "nvidia_nim",
+            "ollama",
+        ]:
             config_file = tmp_path / f"config_{provider}.toml"
-            cfg = Config(provider=provider, model="test-model", scan_defaults=ScanDefaults())
+            cfg = Config(
+                provider=provider, model="test-model", scan_defaults=ScanDefaults()
+            )
             self._save_to(cfg, config_file)
             loaded = self._load_from(config_file)
             assert loaded is not None
@@ -115,7 +126,7 @@ class TestConfigStore:
     def test_get_api_key_returns_none_when_not_set(self):
         """get_api_key should return None gracefully when no key is stored."""
         from remy.config.store import get_api_key
+
         # Use a provider name that won't have a real key in test environment
         result = get_api_key("__remy_test_provider_xyz__")
         assert result is None
-

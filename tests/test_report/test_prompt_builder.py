@@ -8,8 +8,11 @@ from remy.report.models import Finding, Severity, ScanReport
 from remy.report.prompt_builder import build_fix_prompt, _redact_secret
 
 
-def make_finding(severity=Severity.HIGH, file="src/app.py", line=10, title="Test Finding"):
+def make_finding(
+    severity=Severity.HIGH, file="src/app.py", line=10, title="Test Finding"
+):
     from remy.utils.hashing import fingerprint_finding
+
     return Finding(
         id=fingerprint_finding(file, line, title, "test"),
         scanner="test",
@@ -123,7 +126,9 @@ class TestPromptBuilder:
 
     def test_chunked_prompts_have_part_numbers(self):
         findings = [
-            make_finding(file=f"src/file{i}.py", line=i, title=f"Finding {'x' * 50} {i}")
+            make_finding(
+                file=f"src/file{i}.py", line=i, title=f"Finding {'x' * 50} {i}"
+            )
             for i in range(200)
         ]
         report = make_report(findings=findings)
@@ -131,4 +136,3 @@ class TestPromptBuilder:
         if len(result) > 1:
             assert "Part 1" in result[0]
             assert "Part 2" in result[1]
-

@@ -12,7 +12,6 @@ from remy.report.models import Finding, Severity
 from remy.utils.hashing import fingerprint_finding
 from .base import Scanner
 
-
 # ── Route detection patterns ──────────────────────────────────────────────────
 
 ROUTE_PATTERNS: list[tuple[str, re.Pattern]] = [
