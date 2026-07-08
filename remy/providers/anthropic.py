@@ -2,10 +2,30 @@ import httpx
 from .base import Provider, ModelInfo, Message, ProviderError
 
 ANTHROPIC_MODELS = [
-    ModelInfo(id="claude-opus-4-5",          name="Claude Opus 4.5",          context_length=200000, notes="Most capable. Best for deep logic analysis."),
-    ModelInfo(id="claude-sonnet-4-5",        name="Claude Sonnet 4.5",        context_length=200000, notes="Balanced speed/quality. Recommended default."),
-    ModelInfo(id="claude-haiku-4-5",         name="Claude Haiku 4.5",         context_length=200000, notes="Fastest Claude model."),
-    ModelInfo(id="claude-3-5-haiku-20241022",name="Claude 3.5 Haiku",         context_length=200000, notes="Cost-efficient previous generation."),
+    ModelInfo(
+        id="claude-opus-4-5",
+        name="Claude Opus 4.5",
+        context_length=200000,
+        notes="Most capable. Best for deep logic analysis.",
+    ),
+    ModelInfo(
+        id="claude-sonnet-4-5",
+        name="Claude Sonnet 4.5",
+        context_length=200000,
+        notes="Balanced speed/quality. Recommended default.",
+    ),
+    ModelInfo(
+        id="claude-haiku-4-5",
+        name="Claude Haiku 4.5",
+        context_length=200000,
+        notes="Fastest Claude model.",
+    ),
+    ModelInfo(
+        id="claude-3-5-haiku-20241022",
+        name="Claude 3.5 Haiku",
+        context_length=200000,
+        notes="Cost-efficient previous generation.",
+    ),
 ]
 
 
@@ -67,7 +87,9 @@ class AnthropicProvider(Provider):
                 data = resp.json()
                 # Anthropic response: content is a list of content blocks
                 content_blocks = data.get("content", [])
-                text_parts = [b["text"] for b in content_blocks if b.get("type") == "text"]
+                text_parts = [
+                    b["text"] for b in content_blocks if b.get("type") == "text"
+                ]
                 return "\n".join(text_parts)
             except httpx.HTTPStatusError as e:
                 raise ProviderError(

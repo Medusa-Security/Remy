@@ -42,7 +42,9 @@ def _parse_requirements_txt(content: str) -> list[tuple[str, str, int]]:
         if not line or line.startswith(("#", "-r", "--")):
             continue
         # Handle name==version, name>=version, name~=version etc.
-        m = re.match(r"^([A-Za-z0-9_\-\.]+)\s*(?:==|>=|<=|~=|!=|>|<)\s*([^\s;#,]+)", line)
+        m = re.match(
+            r"^([A-Za-z0-9_\-\.]+)\s*(?:==|>=|<=|~=|!=|>|<)\s*([^\s;#,]+)", line
+        )
         if m:
             deps.append((m.group(1), m.group(2).strip(), line_no))
     return deps
@@ -61,7 +63,7 @@ def _parse_package_json(content: str) -> list[tuple[str, str, int]]:
             ver_clean = re.sub(r"[\^~>=<]", "", str(ver)).strip()
             # Find approximate line number
             line_no = next(
-                (i + 1 for i, l in enumerate(lines) if f'"{pkg}"' in l),
+                (i + 1 for i, line in enumerate(lines) if f'"{pkg}"' in line),
                 1,
             )
             deps.append((pkg, ver_clean, line_no))
@@ -112,7 +114,9 @@ def _parse_pyproject_toml(content: str) -> list[tuple[str, str, int]]:
         if not in_deps:
             continue
         # Match "package>=version" style inside the list
-        m = re.match(r"""['"]\s*([A-Za-z0-9_\-\.]+)\s*(?:[>=<~!]+)\s*([^'"]+)""", stripped)
+        m = re.match(
+            r"""['"]\s*([A-Za-z0-9_\-\.]+)\s*(?:[>=<~!]+)\s*([^'"]+)""", stripped
+        )
         if m:
             deps.append((m.group(1), m.group(2).strip(), line_no))
     return deps
@@ -160,10 +164,10 @@ class DependencyScanner(Scanner):
 
     MANIFEST_PARSERS: dict[str, tuple] = {
         "requirements.txt": (_parse_requirements_txt, "PyPI"),
-        "Pipfile":          (_parse_pipfile,          "PyPI"),
-        "pyproject.toml":   (_parse_pyproject_toml,   "PyPI"),
-        "package.json":     (_parse_package_json,     "npm"),
-        "go.mod":           (_parse_go_mod,           "Go"),
+        "Pipfile": (_parse_pipfile, "PyPI"),
+        "pyproject.toml": (_parse_pyproject_toml, "PyPI"),
+        "package.json": (_parse_package_json, "npm"),
+        "go.mod": (_parse_go_mod, "Go"),
     }
 
     async def scan_file(
@@ -202,7 +206,7 @@ class DependencyScanner(Scanner):
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        dep_line_map = {pkg: (ver, line_no) for pkg, ver, line_no in deps}
+        {pkg: (ver, line_no) for pkg, ver, line_no in deps}
 
         for (pkg, ver, line_no), result in zip(deps, results):
             if not isinstance(result, list) or not result:
@@ -212,7 +216,7 @@ class DependencyScanner(Scanner):
                 vuln_id = vuln.get("id", "UNKNOWN")
                 aliases = vuln.get("aliases", [])
                 summary = vuln.get("summary", "No description available.")
-                details = vuln.get("details", "")
+                vuln.get("details", "")
 
                 # Extract CVSS score from severity
                 cvss_score: Optional[float] = None
@@ -252,7 +256,12 @@ class DependencyScanner(Scanner):
                     continue  # already reported this CVE for this package
                 _seen_vuln_keys.update(canonical_keys)
 
-                fid = fingerprint_finding(str(path), line_no, f"{pkg}_{cve_ids[0] if cve_ids else vuln_id}", self.name)
+                fid = fingerprint_finding(
+                    str(path),
+                    line_no,
+                    f"{pkg}_{cve_ids[0] if cve_ids else vuln_id}",
+                    self.name,
+                )
 
                 findings.append(
                     Finding(

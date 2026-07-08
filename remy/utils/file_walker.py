@@ -4,10 +4,26 @@ import fnmatch
 
 
 SKIP_DIRS = {
-    ".git", ".svn", ".hg", "node_modules", "__pycache__",
-    ".venv", "venv", "env", "ENV", "dist", "build",
-    ".idea", ".vscode", ".mypy_cache", ".ruff_cache",
-    ".pytest_cache", "htmlcov", ".tox", "eggs", ".eggs",
+    ".git",
+    ".svn",
+    ".hg",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "ENV",
+    "dist",
+    "build",
+    ".idea",
+    ".vscode",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    "htmlcov",
+    ".tox",
+    "eggs",
+    ".eggs",
     ".remy",  # never scan remy's own output directory
 }
 
@@ -42,12 +58,12 @@ EXT_TO_LANG: dict[str, str] = {
 }
 
 BINARY_SIGNATURES = [
-    b"\x89PNG",      # PNG image
-    b"GIF8",         # GIF image
-    b"\xff\xd8\xff", # JPEG image
+    b"\x89PNG",  # PNG image
+    b"GIF8",  # GIF image
+    b"\xff\xd8\xff",  # JPEG image
     b"PK\x03\x04",  # ZIP / JAR / DOCX etc
-    b"\x7fELF",      # ELF binary
-    b"MZ",           # Windows PE executable
+    b"\x7fELF",  # ELF binary
+    b"MZ",  # Windows PE executable
     b"\xca\xfe\xba\xbe",  # Mach-O fat binary
     b"\xfe\xed\xfa\xce",  # Mach-O 32-bit
     b"\xfe\xed\xfa\xcf",  # Mach-O 64-bit
@@ -105,7 +121,9 @@ class FileWalker:
             if fnmatch.fnmatch(path.name, pattern):
                 return True
             # directory-only pattern (ends with /)
-            if pattern.endswith("/") and fnmatch.fnmatch(rel_str, pattern.rstrip("/") + "/*"):
+            if pattern.endswith("/") and fnmatch.fnmatch(
+                rel_str, pattern.rstrip("/") + "/*"
+            ):
                 return True
         return False
 
@@ -119,7 +137,9 @@ class FileWalker:
                 if header.startswith(sig):
                     return True
             # Heuristic: if >30% of first 512 bytes are null or non-printable, it's binary
-            non_text = sum(1 for b in header if b == 0 or (b < 8 and b not in (9, 10, 13)))
+            non_text = sum(
+                1 for b in header if b == 0 or (b < 8 and b not in (9, 10, 13))
+            )
             if len(header) > 0 and non_text / len(header) > 0.10:
                 return True
             return False
@@ -149,7 +169,10 @@ class FileWalker:
                 continue
 
             # Skip hidden files/dirs (starting with .)
-            if any(part.startswith(".") and part not in (".", "..") for part in path.relative_to(self.root).parts):
+            if any(
+                part.startswith(".") and part not in (".", "..")
+                for part in path.relative_to(self.root).parts
+            ):
                 if path.suffix not in EXT_TO_LANG:
                     continue
 

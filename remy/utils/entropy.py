@@ -1,5 +1,4 @@
 import math
-import base64
 from collections import Counter
 
 
@@ -56,7 +55,9 @@ def is_high_entropy_b64(s: str, threshold: float = 4.0) -> bool:
         True if the string looks like high-entropy base64, False otherwise.
     """
     B64_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
-    B64_URL_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=")
+    B64_URL_CHARS = set(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_="
+    )
 
     if len(s) < 16:
         return False

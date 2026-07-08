@@ -22,13 +22,13 @@ from .store import save_config, set_api_key, get_api_key, load_config
 console = Console()
 
 PROVIDER_NOTES = {
-    "openrouter":  "Routes requests to 200+ models. Great for flexibility.",
-    "groq":        "Ultra-low latency inference. Best for fast scanning.",
-    "openai":      "GPT-4o and newer models from OpenAI.",
-    "anthropic":   "Claude family — excellent at code reasoning.",
-    "xai":         "xAI Grok model family. OpenAI-compatible endpoint.",
-    "nvidia_nim":  "NVIDIA NIM cloud or self-hosted inference.",
-    "ollama":      "Fully local, no API key required. Run `ollama serve` first.",
+    "openrouter": "Routes requests to 200+ models. Great for flexibility.",
+    "groq": "Ultra-low latency inference. Best for fast scanning.",
+    "openai": "GPT-4o and newer models from OpenAI.",
+    "anthropic": "Claude family — excellent at code reasoning.",
+    "xai": "xAI Grok model family. OpenAI-compatible endpoint.",
+    "nvidia_nim": "NVIDIA NIM cloud or self-hosted inference.",
+    "ollama": "Fully local, no API key required. Run `ollama serve` first.",
 }
 
 
@@ -36,15 +36,18 @@ def _check_ollama_running() -> bool:
     """Return True if a local Ollama instance is detected."""
     try:
         from remy.providers.ollama import OllamaProvider
+
         return asyncio.run(OllamaProvider.detect_running())
     except Exception:
         return False
 
 
-def _validate_api_key(provider: str, api_key: str, model: str, base_url: Optional[str] = None) -> bool:
+def _validate_api_key(
+    provider: str, api_key: str, model: str, base_url: Optional[str] = None
+) -> bool:
     """Perform a live ping to validate the API key. Returns True if valid."""
     try:
-        from remy.config.schema import Config, ScanDefaults
+        from remy.config.schema import Config
         from remy.providers.registry import get_provider
         import keyring
 
@@ -59,6 +62,7 @@ def _validate_api_key(provider: str, api_key: str, model: str, base_url: Optiona
 
         # Monkey-patch get_api_key for this validation call
         from remy.config import store as _store
+
         _orig = _store.get_api_key
 
         def _temp_get(p: str) -> Optional[str]:
@@ -78,7 +82,9 @@ def _validate_api_key(provider: str, api_key: str, model: str, base_url: Optiona
         return False
 
 
-def _fetch_models(provider: str, api_key: str, model: str, base_url: Optional[str] = None) -> list:
+def _fetch_models(
+    provider: str, api_key: str, model: str, base_url: Optional[str] = None
+) -> list:
     """Fetch available models from provider. Returns empty list on failure."""
     try:
         from remy.config.schema import Config
@@ -124,7 +130,9 @@ def _render_models_table(models: list) -> None:
         table.add_row(str(i), m.id, ctx, notes)
 
     if len(models) > 30:
-        table.caption = f"[dim]...and {len(models) - 30} more. Type a model ID manually.[/dim]"
+        table.caption = (
+            f"[dim]...and {len(models) - 30} more. Type a model ID manually.[/dim]"
+        )
 
     console.print(table)
 
@@ -154,11 +162,16 @@ def run_wizard() -> Optional[Config]:
 
     provider_choices = []
     for p, note in PROVIDER_NOTES.items():
-        suffix = " [green](detected locally)[/]" if (p == "ollama" and ollama_running) else ""
         provider_choices.append(
-            questionary.Choice(title=f"{p:<14} — {note}" + (
-                " ✅ (running locally)" if (p == "ollama" and ollama_running) else ""
-            ), value=p)
+            questionary.Choice(
+                title=f"{p:<14} — {note}"
+                + (
+                    " ✅ (running locally)"
+                    if (p == "ollama" and ollama_running)
+                    else ""
+                ),
+                value=p,
+            )
         )
 
     if ollama_running:
@@ -217,13 +230,13 @@ def run_wizard() -> Optional[Config]:
     # ── Step 3: Model selection ───────────────────────────────────────────────
     console.print()
     default_models = {
-        "openrouter":  "openai/gpt-4o",
-        "groq":        "llama-3.3-70b-versatile",
-        "openai":      "gpt-4o",
-        "anthropic":   "claude-sonnet-4-5",
-        "xai":         "grok-3-mini",
-        "nvidia_nim":  "nvidia/llama-3.1-nemotron-70b-instruct",
-        "ollama":      "llama3.2",
+        "openrouter": "openai/gpt-4o",
+        "groq": "llama-3.3-70b-versatile",
+        "openai": "gpt-4o",
+        "anthropic": "claude-sonnet-4-5",
+        "xai": "grok-3-mini",
+        "nvidia_nim": "nvidia/llama-3.1-nemotron-70b-instruct",
+        "ollama": "llama3.2",
     }
     default_model = default_models.get(provider, "")
 
@@ -236,11 +249,15 @@ def run_wizard() -> Optional[Config]:
         model = questionary.autocomplete(
             "Step 3/5 — Select or type a model ID:",
             choices=model_ids,
-            default=default_model if default_model in model_ids else (model_ids[0] if model_ids else default_model),
+            default=default_model
+            if default_model in model_ids
+            else (model_ids[0] if model_ids else default_model),
             validate=lambda x: bool(x.strip()) or "Model ID cannot be empty",
         ).ask()
     else:
-        console.print("[yellow]  Could not fetch model list. Enter a model ID manually.[/yellow]")
+        console.print(
+            "[yellow]  Could not fetch model list. Enter a model ID manually.[/yellow]"
+        )
         model = questionary.text(
             "Step 3/5 — Model ID:",
             default=default_model,
@@ -280,7 +297,9 @@ def run_wizard() -> Optional[Config]:
         default="1000",
         validate=lambda x: x.isdigit() and int(x) > 0 or "Must be a positive integer",
     ).ask()
-    max_file_size_kb = int(max_size_str) if max_size_str and max_size_str.isdigit() else 1000
+    max_file_size_kb = (
+        int(max_size_str) if max_size_str and max_size_str.isdigit() else 1000
+    )
 
     respect_gitignore = questionary.confirm(
         "  Auto-respect .gitignore and .remyignore?",
@@ -304,12 +323,12 @@ def run_wizard() -> Optional[Config]:
     )
     summary_table.add_column("Setting", style="bold color(102)")
     summary_table.add_column("Value", style="white")
-    summary_table.add_row("Provider",         provider)
-    summary_table.add_row("Model",            model)
-    summary_table.add_row("API Key",          redacted_key)
-    summary_table.add_row("Base URL",         base_url or "(default)")
-    summary_table.add_row("Deep Scan",        str(deep))
-    summary_table.add_row("Max File Size",    f"{max_file_size_kb} KB")
+    summary_table.add_row("Provider", provider)
+    summary_table.add_row("Model", model)
+    summary_table.add_row("API Key", redacted_key)
+    summary_table.add_row("Base URL", base_url or "(default)")
+    summary_table.add_row("Deep Scan", str(deep))
+    summary_table.add_row("Max File Size", f"{max_file_size_kb} KB")
     summary_table.add_row("Respect .gitignore", str(respect_gitignore))
     console.print(summary_table)
 
@@ -330,7 +349,9 @@ def run_wizard() -> Optional[Config]:
         scan_defaults=ScanDefaults(
             deep=deep or False,
             max_file_size_kb=max_file_size_kb,
-            respect_gitignore=respect_gitignore if respect_gitignore is not None else True,
+            respect_gitignore=respect_gitignore
+            if respect_gitignore is not None
+            else True,
         ),
     )
 
@@ -346,10 +367,18 @@ def run_wizard() -> Optional[Config]:
                 ("remy scan", "bold color(220)"),
                 (" to start scanning.\n\n", "white"),
                 ("💡 Tips:\n", "bold"),
-                ("  • ", "dim"), ("remy providers list", "color(220)"), (" — view all providers\n", "dim"),
-                ("  • ", "dim"), ("remy config show", "color(220)"),    (" — view current config\n", "dim"),
-                ("  • ", "dim"), ("remy scan --deep", "color(220)"),    (" — enable LLM logic analysis\n", "dim"),
-                ("  • ", "dim"), ("remy --help", "color(220)"),         (" — full command reference", "dim"),
+                ("  • ", "dim"),
+                ("remy providers list", "color(220)"),
+                (" — view all providers\n", "dim"),
+                ("  • ", "dim"),
+                ("remy config show", "color(220)"),
+                (" — view current config\n", "dim"),
+                ("  • ", "dim"),
+                ("remy scan --deep", "color(220)"),
+                (" — enable LLM logic analysis\n", "dim"),
+                ("  • ", "dim"),
+                ("remy --help", "color(220)"),
+                (" — full command reference", "dim"),
             ),
             border_style="green",
             title="[bold green]Setup Complete[/]",
@@ -397,19 +426,25 @@ def run_provider_step() -> None:
         if api_key == "":
             api_key = existing_key  # keep existing
     else:
-        url = questionary.text("Ollama base URL:", default="http://localhost:11434").ask()
+        url = questionary.text(
+            "Ollama base URL:", default="http://localhost:11434"
+        ).ask()
         base_url = url.strip() if url else None
 
     default_models = {
-        "openrouter":  "openai/gpt-4o",
-        "groq":        "llama-3.3-70b-versatile",
-        "openai":      "gpt-4o",
-        "anthropic":   "claude-sonnet-4-5",
-        "xai":         "grok-3-mini",
-        "nvidia_nim":  "nvidia/llama-3.1-nemotron-70b-instruct",
-        "ollama":      "llama3.2",
+        "openrouter": "openai/gpt-4o",
+        "groq": "llama-3.3-70b-versatile",
+        "openai": "gpt-4o",
+        "anthropic": "claude-sonnet-4-5",
+        "xai": "grok-3-mini",
+        "nvidia_nim": "nvidia/llama-3.1-nemotron-70b-instruct",
+        "ollama": "llama3.2",
     }
-    current_model = current.model if current and current.provider == provider else default_models.get(provider, "")
+    current_model = (
+        current.model
+        if current and current.provider == provider
+        else default_models.get(provider, "")
+    )
 
     model = questionary.text(
         "Model ID:",

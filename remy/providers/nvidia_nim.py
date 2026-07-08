@@ -3,9 +3,24 @@ from typing import Optional
 from .base import Provider, ModelInfo, Message, ProviderError
 
 NVIDIA_MODELS = [
-    ModelInfo(id="nvidia/llama-3.1-nemotron-70b-instruct", name="Llama 3.1 Nemotron 70B", context_length=128000, notes="NVIDIA-optimized, high quality."),
-    ModelInfo(id="meta/llama-3.1-70b-instruct",           name="Meta Llama 3.1 70B",     context_length=128000, notes="Strong general-purpose model."),
-    ModelInfo(id="microsoft/phi-3-medium-128k-instruct",  name="Phi-3 Medium 128K",       context_length=128000, notes="Efficient model from Microsoft."),
+    ModelInfo(
+        id="nvidia/llama-3.1-nemotron-70b-instruct",
+        name="Llama 3.1 Nemotron 70B",
+        context_length=128000,
+        notes="NVIDIA-optimized, high quality.",
+    ),
+    ModelInfo(
+        id="meta/llama-3.1-70b-instruct",
+        name="Meta Llama 3.1 70B",
+        context_length=128000,
+        notes="Strong general-purpose model.",
+    ),
+    ModelInfo(
+        id="microsoft/phi-3-medium-128k-instruct",
+        name="Phi-3 Medium 128K",
+        context_length=128000,
+        notes="Efficient model from Microsoft.",
+    ),
 ]
 
 
@@ -53,7 +68,9 @@ class NVIDIANIMProvider(Provider):
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"NVIDIA NIM API error: {e.response.status_code} {e.response.text}") from e
+                raise ProviderError(
+                    f"NVIDIA NIM API error: {e.response.status_code} {e.response.text}"
+                ) from e
             except (httpx.RequestError, KeyError) as e:
                 raise ProviderError(f"NVIDIA NIM request failed: {e}") from e
 
@@ -61,7 +78,9 @@ class NVIDIANIMProvider(Provider):
         """Validate API key."""
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
-                resp = await client.get(f"{self.base_url}/models", headers=self._headers())
+                resp = await client.get(
+                    f"{self.base_url}/models", headers=self._headers()
+                )
                 return resp.status_code == 200
             except httpx.RequestError:
                 return False

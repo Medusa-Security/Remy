@@ -52,7 +52,9 @@ class OpenRouterProvider(Provider):
                     )
                 return models
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"OpenRouter API error: {e.response.status_code} {e.response.text}") from e
+                raise ProviderError(
+                    f"OpenRouter API error: {e.response.status_code} {e.response.text}"
+                ) from e
             except httpx.RequestError as e:
                 raise ProviderError(f"OpenRouter connection error: {e}") from e
 
@@ -75,7 +77,9 @@ class OpenRouterProvider(Provider):
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"OpenRouter completion error: {e.response.status_code} {e.response.text}") from e
+                raise ProviderError(
+                    f"OpenRouter completion error: {e.response.status_code} {e.response.text}"
+                ) from e
             except (httpx.RequestError, KeyError) as e:
                 raise ProviderError(f"OpenRouter request failed: {e}") from e
 

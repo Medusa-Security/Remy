@@ -15,7 +15,6 @@ Key requirements:
 
 import json
 import re
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -31,15 +30,16 @@ OUTPUT_DIR = Path(".remy")
 # Severity display labels
 SEV_LABELS = {
     Severity.CRITICAL: "CRITICAL",
-    Severity.HIGH:     "HIGH",
-    Severity.MEDIUM:   "MEDIUM",
-    Severity.LOW:      "LOW",
-    Severity.INFO:     "INFO",
+    Severity.HIGH: "HIGH",
+    Severity.MEDIUM: "MEDIUM",
+    Severity.LOW: "LOW",
+    Severity.INFO: "INFO",
 }
 
 
 def _redact_secret(text: str) -> str:
     """Redact potential secret values in text, showing only first/last 4 chars."""
+
     # Redact long high-entropy-looking tokens in code snippets
     def _redact_match(m: re.Match) -> str:
         val = m.group(0)
@@ -60,7 +60,9 @@ def _format_finding(finding: Finding, index: int) -> str:
     sev_label = SEV_LABELS[finding.severity]
     lines = []
     lines.append(f"### [{sev_label}] {finding.title}")
-    lines.append(f"**File:** `{finding.file}`, lines {finding.line_start}–{finding.line_end}  ")
+    lines.append(
+        f"**File:** `{finding.file}`, lines {finding.line_start}–{finding.line_end}  "
+    )
     if finding.cwe:
         lines.append(f"**CWE:** {finding.cwe}  ")
     lines.append(f"**Scanner:** {finding.scanner}  ")
@@ -81,7 +83,11 @@ def _format_finding(finding: Finding, index: int) -> str:
     return "\n".join(lines)
 
 
-def _build_header(report: ScanReport, chunk_num: Optional[int] = None, total_chunks: Optional[int] = None) -> str:
+def _build_header(
+    report: ScanReport,
+    chunk_num: Optional[int] = None,
+    total_chunks: Optional[int] = None,
+) -> str:
     """Build the standard Fix Prompt header."""
     chunk_info = ""
     if chunk_num is not None and total_chunks is not None and total_chunks > 1:
@@ -122,7 +128,6 @@ def _build_summary(report: ScanReport) -> str:
 
 def _build_checklist(report: ScanReport) -> str:
     """Build a dynamic verification checklist based on what was actually found."""
-    from .models import Severity
 
     # Collect which scanner types produced findings
     scanners = {f.scanner for f in report.findings}
@@ -134,33 +139,51 @@ def _build_checklist(report: ScanReport) -> str:
     items.append("- [ ] All tests pass after changes are applied")
 
     if "secrets" in scanners or "CWE-798" in cwes:
-        items.append("- [ ] All hardcoded secrets moved to environment variables or a secrets manager")
-        items.append("- [ ] Exposed API keys and tokens rotated in their respective dashboards")
+        items.append(
+            "- [ ] All hardcoded secrets moved to environment variables or a secrets manager"
+        )
+        items.append(
+            "- [ ] Exposed API keys and tokens rotated in their respective dashboards"
+        )
 
     if "api_surface" in scanners or "CWE-306" in cwes or "CWE-770" in cwes:
         items.append("- [ ] All non-public endpoints require authentication")
-        items.append("- [ ] Rate limiting applied to auth, password-reset, upload, and webhook endpoints")
+        items.append(
+            "- [ ] Rate limiting applied to auth, password-reset, upload, and webhook endpoints"
+        )
 
     if "auth_bypass" in scanners or "CWE-347" in cwes or "CWE-639" in cwes:
-        items.append("- [ ] JWT verification enabled with a strong algorithm (no algorithm=none)")
-        items.append("- [ ] Authorization decisions made server-side, not from request parameters")
-        items.append("- [ ] Object ownership verified before returning data (IDOR prevention)")
+        items.append(
+            "- [ ] JWT verification enabled with a strong algorithm (no algorithm=none)"
+        )
+        items.append(
+            "- [ ] Authorization decisions made server-side, not from request parameters"
+        )
+        items.append(
+            "- [ ] Object ownership verified before returning data (IDOR prevention)"
+        )
 
     if "sast_python" in scanners or "CWE-89" in cwes:
-        items.append("- [ ] SQL queries use parameterized statements (no string formatting or f-strings)")
+        items.append(
+            "- [ ] SQL queries use parameterized statements (no string formatting or f-strings)"
+        )
 
     if "sast_python" in scanners or "CWE-78" in cwes:
         items.append("- [ ] No eval() / exec() with dynamic or user-supplied input")
         items.append("- [ ] subprocess calls use shell=False with argument lists")
 
     if "sast_python" in scanners or "CWE-502" in cwes:
-        items.append("- [ ] Deserialization only from trusted, validated sources (no pickle on user data)")
+        items.append(
+            "- [ ] Deserialization only from trusted, validated sources (no pickle on user data)"
+        )
 
     if "dependency" in scanners or "CWE-1035" in cwes:
         items.append("- [ ] Dependencies upgraded to patched versions where flagged")
 
     if "sast_js_ts" in scanners or "CWE-79" in cwes:
-        items.append("- [ ] User input is sanitized before rendering as HTML (XSS prevention)")
+        items.append(
+            "- [ ] User input is sanitized before rendering as HTML (XSS prevention)"
+        )
 
     lines = [
         "---",
@@ -224,7 +247,10 @@ def build_fix_prompt(report: ScanReport) -> list[str]:
     base_overhead = len(header) + len(summary) + len(checklist) + 500  # buffer
 
     for block in findings_blocks:
-        if current_size + len(block) + base_overhead > MAX_CHUNK_CHARS and current_size > 0:
+        if (
+            current_size + len(block) + base_overhead > MAX_CHUNK_CHARS
+            and current_size > 0
+        ):
             chunks_content.append([])
             current_size = 0
         chunks_content[-1].append(block)
@@ -235,8 +261,12 @@ def build_fix_prompt(report: ScanReport) -> list[str]:
 
     for i, chunk_blocks in enumerate(chunks_content, 1):
         chunk_header = _build_header(report, chunk_num=i, total_chunks=total_chunks)
-        chunk_summary = summary if i == 1 else (
-            f"## Summary\n\n*(Continued from part {i - 1} of {total_chunks})*\n\n"
+        chunk_summary = (
+            summary
+            if i == 1
+            else (
+                f"## Summary\n\n*(Continued from part {i - 1} of {total_chunks})*\n\n"
+            )
         )
         chunk_body = chunk_header + chunk_summary + "".join(chunk_blocks)
         if i == total_chunks:
@@ -294,7 +324,9 @@ def build_fix_prompt_from_cache(cache_file: Path) -> list[str]:
     return build_fix_prompt(report)
 
 
-def save_prompt_from_cache(cache_file: Path, output_dir: Optional[Path] = None) -> list[str]:
+def save_prompt_from_cache(
+    cache_file: Path, output_dir: Optional[Path] = None
+) -> list[str]:
     """Load cached findings and write Fix Prompt files.
 
     Args:
@@ -347,7 +379,9 @@ def _load_report_from_cache(cache_file: Path) -> Optional[ScanReport]:
         return ScanReport(
             scan_id=data.get("scan_id", "cached"),
             target_path=data.get("target_path", "."),
-            timestamp=datetime.fromisoformat(data.get("timestamp", datetime.now().isoformat())),
+            timestamp=datetime.fromisoformat(
+                data.get("timestamp", datetime.now().isoformat())
+            ),
             findings=findings,
             files_scanned=data.get("files_scanned", 0),
             duration_seconds=data.get("duration_seconds", 0.0),

@@ -17,13 +17,48 @@ def render_providers_table(console: Console) -> None:
     table.add_column("Notes")
 
     providers = [
-        ("OpenRouter",   "✅ Yes", "https://openrouter.ai/api/v1",          "Routes to many upstream models. Great for flexibility."),
-        ("Groq",         "✅ Yes", "https://api.groq.com/openai/v1",         "Ultra-low latency. Best for fast bulk scanning."),
-        ("OpenAI",       "✅ Yes", "https://api.openai.com/v1",              "Standard GPT-4o / GPT-4-turbo support."),
-        ("Anthropic",    "✅ Yes", "https://api.anthropic.com",              "Claude family. Native Messages API."),
-        ("xAI",          "✅ Yes", "https://api.x.ai/v1",                   "Grok model family. OpenAI-compatible."),
-        ("NVIDIA NIM",   "✅ Yes", "https://integrate.api.nvidia.com/v1",   "Llama, Mistral, Phi on NVIDIA infra. Self-hosted override available."),
-        ("Ollama",       "❌ No",  "http://localhost:11434",                 "Fully local. No API key needed. Run `ollama serve` first."),
+        (
+            "OpenRouter",
+            "✅ Yes",
+            "https://openrouter.ai/api/v1",
+            "Routes to many upstream models. Great for flexibility.",
+        ),
+        (
+            "Groq",
+            "✅ Yes",
+            "https://api.groq.com/openai/v1",
+            "Ultra-low latency. Best for fast bulk scanning.",
+        ),
+        (
+            "OpenAI",
+            "✅ Yes",
+            "https://api.openai.com/v1",
+            "Standard GPT-4o / GPT-4-turbo support.",
+        ),
+        (
+            "Anthropic",
+            "✅ Yes",
+            "https://api.anthropic.com",
+            "Claude family. Native Messages API.",
+        ),
+        (
+            "xAI",
+            "✅ Yes",
+            "https://api.x.ai/v1",
+            "Grok model family. OpenAI-compatible.",
+        ),
+        (
+            "NVIDIA NIM",
+            "✅ Yes",
+            "https://integrate.api.nvidia.com/v1",
+            "Llama, Mistral, Phi on NVIDIA infra. Self-hosted override available.",
+        ),
+        (
+            "Ollama",
+            "❌ No",
+            "http://localhost:11434",
+            "Fully local. No API key needed. Run `ollama serve` first.",
+        ),
     ]
     for name, key_req, base_url, notes in providers:
         table.add_row(name, key_req, base_url, notes)
@@ -51,10 +86,10 @@ def render_findings_summary_table(console: Console, report) -> None:
 
     severity_data = [
         ("🔴 CRITICAL", report.critical_count, "bold red"),
-        ("🟠 HIGH",     report.high_count,     "red"),
-        ("🟡 MEDIUM",   report.medium_count,   "yellow"),
-        ("🔵 LOW",      report.low_count,       "cyan"),
-        ("⚪ INFO",     report.info_count,      "dim white"),
+        ("🟠 HIGH", report.high_count, "red"),
+        ("🟡 MEDIUM", report.medium_count, "yellow"),
+        ("🔵 LOW", report.low_count, "cyan"),
+        ("⚪ INFO", report.info_count, "dim white"),
     ]
 
     max_count = max((c for _, c, _ in severity_data), default=1) or 1

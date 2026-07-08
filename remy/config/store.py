@@ -1,8 +1,6 @@
-import os
 import json
 import tomlkit
 from pathlib import Path
-from pydantic import ValidationError
 from .schema import Config
 import keyring
 
@@ -45,35 +43,38 @@ def load_config() -> Config | None:
     except Exception:
         return None
 
+
 def save_config(config: Config):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE, "r") as f:
             doc = tomlkit.load(f)
     else:
         doc = tomlkit.document()
-        
+
     doc["provider"] = config.provider
     doc["model"] = config.model
     if config.base_url:
         doc["base_url"] = config.base_url
-        
+
     scan_defaults = tomlkit.table()
     scan_defaults["deep"] = config.scan_defaults.deep
     scan_defaults["max_file_size_kb"] = config.scan_defaults.max_file_size_kb
     scan_defaults["respect_gitignore"] = config.scan_defaults.respect_gitignore
-    
+
     doc["scan_defaults"] = scan_defaults
-    
+
     with open(CONFIG_FILE, "w") as f:
         tomlkit.dump(doc, f)
+
 
 def get_api_key(provider: str) -> str | None:
     try:
         return keyring.get_password("remy-agent", f"{provider}_api_key")
     except Exception:
         return None
+
 
 def set_api_key(provider: str, api_key: str):
     if not api_key:

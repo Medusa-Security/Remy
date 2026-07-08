@@ -2,9 +2,24 @@ import httpx
 from .base import Provider, ModelInfo, Message, ProviderError
 
 XAI_MODELS = [
-    ModelInfo(id="grok-3",      name="Grok 3",      context_length=131072, notes="Most capable Grok model."),
-    ModelInfo(id="grok-3-mini", name="Grok 3 Mini",  context_length=131072, notes="Fast, cost-efficient Grok."),
-    ModelInfo(id="grok-beta",   name="Grok Beta",    context_length=131072, notes="Latest beta release."),
+    ModelInfo(
+        id="grok-3",
+        name="Grok 3",
+        context_length=131072,
+        notes="Most capable Grok model.",
+    ),
+    ModelInfo(
+        id="grok-3-mini",
+        name="Grok 3 Mini",
+        context_length=131072,
+        notes="Fast, cost-efficient Grok.",
+    ),
+    ModelInfo(
+        id="grok-beta",
+        name="Grok Beta",
+        context_length=131072,
+        notes="Latest beta release.",
+    ),
 ]
 
 
@@ -46,7 +61,9 @@ class XAIProvider(Provider):
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"xAI API error: {e.response.status_code} {e.response.text}") from e
+                raise ProviderError(
+                    f"xAI API error: {e.response.status_code} {e.response.text}"
+                ) from e
             except (httpx.RequestError, KeyError) as e:
                 raise ProviderError(f"xAI request failed: {e}") from e
 
@@ -54,7 +71,9 @@ class XAIProvider(Provider):
         """Validate API key by listing models."""
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
-                resp = await client.get(f"{self.BASE_URL}/models", headers=self._headers())
+                resp = await client.get(
+                    f"{self.BASE_URL}/models", headers=self._headers()
+                )
                 return resp.status_code == 200
             except httpx.RequestError:
                 return False

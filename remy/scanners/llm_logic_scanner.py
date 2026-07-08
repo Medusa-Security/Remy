@@ -9,7 +9,6 @@ and business logic flaws that static analysis cannot catch.
 import json
 import re
 from pathlib import Path
-from typing import Optional
 from remy.providers.base import Provider, Message
 from remy.report.models import Finding, Severity
 from remy.utils.hashing import fingerprint_finding
@@ -53,10 +52,10 @@ SKIP_LANGUAGES = {"yaml", "json", "toml", "markdown", None}
 # Map severity strings from LLM to Severity enum
 SEVERITY_MAP: dict[str, Severity] = {
     "CRITICAL": Severity.CRITICAL,
-    "HIGH":     Severity.HIGH,
-    "MEDIUM":   Severity.MEDIUM,
-    "LOW":      Severity.LOW,
-    "INFO":     Severity.INFO,
+    "HIGH": Severity.HIGH,
+    "MEDIUM": Severity.MEDIUM,
+    "LOW": Severity.LOW,
+    "INFO": Severity.INFO,
 }
 
 
@@ -94,7 +93,9 @@ class LlmLogicScanner(Scanner):
 
         # Truncate large files to stay within context limits
         if len(content) > MAX_FILE_CHARS:
-            content = content[:MAX_FILE_CHARS] + "\n\n# ... [file truncated by Remy] ..."
+            content = (
+                content[:MAX_FILE_CHARS] + "\n\n# ... [file truncated by Remy] ..."
+            )
 
         user_message = f"File: {path.name}\n\n```{language or ''}\n{content}\n```"
 

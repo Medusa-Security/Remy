@@ -6,6 +6,7 @@ from datetime import datetime
 
 class Severity(Enum):
     """Security finding severity levels."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -46,23 +47,25 @@ class Severity(Enum):
 @dataclass
 class Finding:
     """Represents a single security or bug finding from a scanner."""
-    id: str                            # unique fingerprint hash for deduplication
-    scanner: str                       # which scanner produced this finding
+
+    id: str  # unique fingerprint hash for deduplication
+    scanner: str  # which scanner produced this finding
     severity: Severity
-    cwe: Optional[str]                 # e.g. "CWE-89"
-    file: str                          # relative or absolute file path
+    cwe: Optional[str]  # e.g. "CWE-89"
+    file: str  # relative or absolute file path
     line_start: int
     line_end: int
     title: str
     description: str
     remediation_hint: str
-    confidence: float                  # 0.0-1.0 confidence score
-    code_snippet: Optional[str] = None # the vulnerable code lines for display
+    confidence: float  # 0.0-1.0 confidence score
+    code_snippet: Optional[str] = None  # the vulnerable code lines for display
 
 
 @dataclass
 class ScanReport:
     """Aggregated report from a complete scan run."""
+
     scan_id: str
     target_path: str
     timestamp: datetime
@@ -106,4 +109,6 @@ class ScanReport:
 
     def sorted_findings(self) -> list[Finding]:
         """Return findings sorted by severity (CRITICAL first) then by file path."""
-        return sorted(self.findings, key=lambda f: (f.severity.sort_order, f.file, f.line_start))
+        return sorted(
+            self.findings, key=lambda f: (f.severity.sort_order, f.file, f.line_start)
+        )

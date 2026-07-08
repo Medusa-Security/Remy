@@ -5,12 +5,14 @@ from typing import Optional
 
 class ProviderError(Exception):
     """Raised when a provider encounters an error (auth, network, API)."""
+
     pass
 
 
 @dataclass
 class ModelInfo:
     """Metadata about an available model from a provider."""
+
     id: str
     name: str
     context_length: Optional[int] = None
@@ -20,7 +22,8 @@ class ModelInfo:
 @dataclass
 class Message:
     """A single chat message."""
-    role: str   # 'system', 'user', or 'assistant'
+
+    role: str  # 'system', 'user', or 'assistant'
     content: str
 
 

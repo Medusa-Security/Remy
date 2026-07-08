@@ -28,7 +28,9 @@ class OpenAIProvider(Provider):
         """Fetch and filter GPT models from the OpenAI /models endpoint."""
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                resp = await client.get(f"{self.base_url}/models", headers=self._headers())
+                resp = await client.get(
+                    f"{self.base_url}/models", headers=self._headers()
+                )
                 resp.raise_for_status()
                 data = resp.json()
                 models = []
@@ -39,7 +41,9 @@ class OpenAIProvider(Provider):
                 models.sort(key=lambda x: x.id)
                 return models
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"OpenAI API error: {e.response.status_code}") from e
+                raise ProviderError(
+                    f"OpenAI API error: {e.response.status_code}"
+                ) from e
             except httpx.RequestError as e:
                 raise ProviderError(f"OpenAI connection error: {e}") from e
 
@@ -62,7 +66,9 @@ class OpenAIProvider(Provider):
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"OpenAI completion error: {e.response.status_code} {e.response.text}") from e
+                raise ProviderError(
+                    f"OpenAI completion error: {e.response.status_code} {e.response.text}"
+                ) from e
             except (httpx.RequestError, KeyError) as e:
                 raise ProviderError(f"OpenAI request failed: {e}") from e
 
@@ -70,7 +76,9 @@ class OpenAIProvider(Provider):
         """Validate credentials by fetching the models list."""
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
-                resp = await client.get(f"{self.base_url}/models", headers=self._headers())
+                resp = await client.get(
+                    f"{self.base_url}/models", headers=self._headers()
+                )
                 return resp.status_code == 200
             except httpx.RequestError:
                 return False

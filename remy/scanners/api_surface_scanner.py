@@ -17,17 +17,48 @@ from .base import Scanner
 
 ROUTE_PATTERNS: list[tuple[str, re.Pattern]] = [
     # Flask / Blueprint
-    ("flask",   re.compile(r"""@(?:app|blueprint|bp|\w+)\.route\s*\(\s*['"]([^'"]+)['"]""", re.IGNORECASE)),
+    (
+        "flask",
+        re.compile(
+            r"""@(?:app|blueprint|bp|\w+)\.route\s*\(\s*['"]([^'"]+)['"]""",
+            re.IGNORECASE,
+        ),
+    ),
     # FastAPI
-    ("fastapi", re.compile(r"""@(?:router|app)\.(?:get|post|put|delete|patch|options|head)\s*\(\s*['"]([^'"]+)['"]""", re.IGNORECASE)),
+    (
+        "fastapi",
+        re.compile(
+            r"""@(?:router|app)\.(?:get|post|put|delete|patch|options|head)\s*\(\s*['"]([^'"]+)['"]""",
+            re.IGNORECASE,
+        ),
+    ),
     # Express.js
-    ("express", re.compile(r"""(?:app|router)\.(?:get|post|put|delete|patch|use)\s*\(\s*['"`]([^'"`]+)['"`]""", re.IGNORECASE)),
+    (
+        "express",
+        re.compile(
+            r"""(?:app|router)\.(?:get|post|put|delete|patch|use)\s*\(\s*['"`]([^'"`]+)['"`]""",
+            re.IGNORECASE,
+        ),
+    ),
     # Next.js (file-based, just mark the handler)
-    ("nextjs",  re.compile(r"""export\s+(?:default\s+function|async\s+function|const)\s+(?:handler|GET|POST|PUT|DELETE|PATCH)""")),
+    (
+        "nextjs",
+        re.compile(
+            r"""export\s+(?:default\s+function|async\s+function|const)\s+(?:handler|GET|POST|PUT|DELETE|PATCH)"""
+        ),
+    ),
     # Django urlpatterns — only match inside urlpatterns context or at module level
-    ("django",  re.compile(r"""^\s*(?:re_)?path\s*\(\s*r?['"]([^'"]+)['"]""", re.IGNORECASE)),
+    (
+        "django",
+        re.compile(r"""^\s*(?:re_)?path\s*\(\s*r?['"]([^'"]+)['"]""", re.IGNORECASE),
+    ),
     # NestJS decorators
-    ("nestjs",  re.compile(r"""@(?:Get|Post|Put|Delete|Patch|Options)\s*\(\s*['"]?([^'"\)]+)?['"]?\s*\)""")),
+    (
+        "nestjs",
+        re.compile(
+            r"""@(?:Get|Post|Put|Delete|Patch|Options)\s*\(\s*['"]?([^'"\)]+)?['"]?\s*\)"""
+        ),
+    ),
 ]
 
 # ── Auth indicator patterns ───────────────────────────────────────────────────
@@ -122,7 +153,11 @@ class ApiSurfaceScanner(Scanner):
 
                 # Skip if this doesn't look like a real URL path — catches false
                 # positives where the pattern matches code like Path("test.py")
-                if route_path and not route_path.startswith("/") and "/" not in route_path:
+                if (
+                    route_path
+                    and not route_path.startswith("/")
+                    and "/" not in route_path
+                ):
                     continue
 
                 # Extract the surrounding context (±CONTEXT_WINDOW lines)
@@ -135,7 +170,9 @@ class ApiSurfaceScanner(Scanner):
                 is_public = bool(PUBLIC_ROUTE_PATTERNS.match(route_path or ""))
 
                 if not has_auth and not is_public:
-                    fid = fingerprint_finding(str(path), line_no, f"missing_auth_{route_path}", self.name)
+                    fid = fingerprint_finding(
+                        str(path), line_no, f"missing_auth_{route_path}", self.name
+                    )
                     if fid not in seen_ids:
                         seen_ids.add(fid)
                         findings.append(
@@ -168,7 +205,9 @@ class ApiSurfaceScanner(Scanner):
                 has_rate_limit = bool(RATE_LIMIT_PATTERNS.search(context))
 
                 if is_sensitive and not has_rate_limit:
-                    fid = fingerprint_finding(str(path), line_no, f"missing_ratelimit_{route_path}", self.name)
+                    fid = fingerprint_finding(
+                        str(path), line_no, f"missing_ratelimit_{route_path}", self.name
+                    )
                     if fid not in seen_ids:
                         seen_ids.add(fid)
                         findings.append(
@@ -206,9 +245,17 @@ class ApiSurfaceScanner(Scanner):
             line_no = line_idx + 1
             if CORS_WILDCARD.search(line):
                 # Check if credentials=True is also nearby
-                ctx = "\n".join(lines[max(0, line_idx - 5):min(len(lines), line_idx + 5)])
-                if re.search(r"credentials\s*=\s*True|allow_credentials\s*=\s*true", ctx, re.IGNORECASE):
-                    fid = fingerprint_finding(str(path), line_no, "cors_wildcard_with_creds", self.name)
+                ctx = "\n".join(
+                    lines[max(0, line_idx - 5) : min(len(lines), line_idx + 5)]
+                )
+                if re.search(
+                    r"credentials\s*=\s*True|allow_credentials\s*=\s*true",
+                    ctx,
+                    re.IGNORECASE,
+                ):
+                    fid = fingerprint_finding(
+                        str(path), line_no, "cors_wildcard_with_creds", self.name
+                    )
                     if fid not in seen_ids:
                         seen_ids.add(fid)
                         findings.append(

@@ -28,7 +28,7 @@ class ScanProgress:
     def __init__(self, console: Optional[Console] = None) -> None:
         self.console = console or Console()
         self._progress = Progress(
-            SpinnerColumn(style="color(220)"),           # gold spinner
+            SpinnerColumn(style="color(220)"),  # gold spinner
             TextColumn("[bold color(220)]{task.description}[/]"),
             BarColumn(bar_width=30, style="color(17)", complete_style="color(220)"),
             TaskProgressColumn(),

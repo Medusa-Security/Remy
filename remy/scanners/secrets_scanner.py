@@ -15,32 +15,42 @@ from remy.utils.hashing import fingerprint_finding
 from remy.utils.entropy import shannon_entropy
 from .base import Scanner
 
+
 # ── Load YAML rule extensions ─────────────────────────────────────────────────
 def _load_yaml_rules() -> list[tuple[str, re.Pattern, Severity, str, str]]:
     """Load additional secret patterns from rules/secrets_patterns.yaml."""
     try:
         import yaml
+
         rules_path = Path(__file__).parent.parent / "rules" / "secrets_patterns.yaml"
         if not rules_path.exists():
             return []
         with open(rules_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         sev_map = {
-            "CRITICAL": Severity.CRITICAL, "HIGH": Severity.HIGH,
-            "MEDIUM": Severity.MEDIUM, "LOW": Severity.LOW, "INFO": Severity.INFO,
+            "CRITICAL": Severity.CRITICAL,
+            "HIGH": Severity.HIGH,
+            "MEDIUM": Severity.MEDIUM,
+            "LOW": Severity.LOW,
+            "INFO": Severity.INFO,
         }
         result = []
         for rule in data.get("rules", []):
             try:
                 compiled = re.compile(rule["pattern"])
                 sev = sev_map.get(rule.get("severity", "HIGH"), Severity.HIGH)
-                result.append((
-                    rule["name"],
-                    compiled,
-                    sev,
-                    rule.get("cwe", "CWE-798"),
-                    rule.get("remediation", "Move to environment variable or secret manager."),
-                ))
+                result.append(
+                    (
+                        rule["name"],
+                        compiled,
+                        sev,
+                        rule.get("cwe", "CWE-798"),
+                        rule.get(
+                            "remediation",
+                            "Move to environment variable or secret manager.",
+                        ),
+                    )
+                )
             except (re.error, KeyError):
                 continue
         return result
@@ -85,7 +95,9 @@ SECRET_RULES: list[tuple[str, re.Pattern, Severity, str, str]] = [
     ),
     (
         "AWS Secret Access Key",
-        re.compile(r"(?:aws[_\-]?secret[_\-]?(?:access[_\-]?)?key\s*[=:]\s*['\"]?)([A-Za-z0-9/+]{40})(?:['\"]?)"),
+        re.compile(
+            r"(?:aws[_\-]?secret[_\-]?(?:access[_\-]?)?key\s*[=:]\s*['\"]?)([A-Za-z0-9/+]{40})(?:['\"]?)"
+        ),
         Severity.CRITICAL,
         "CWE-798",
         "Rotate via AWS IAM. Store in AWS Secrets Manager or environment variable.",
@@ -288,7 +300,9 @@ class SecretsScanner(Scanner):
                     continue
                 entropy = shannon_entropy(val)
                 if entropy > 4.5:
-                    fid = fingerprint_finding(str(path), line_no, "high_entropy_string", self.name)
+                    fid = fingerprint_finding(
+                        str(path), line_no, "high_entropy_string", self.name
+                    )
                     if fid in seen_ids:
                         continue
                     seen_ids.add(fid)

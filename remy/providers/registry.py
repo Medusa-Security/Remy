@@ -34,7 +34,9 @@ def get_provider(config: Config) -> Provider:
             raise ProviderError(
                 "OpenRouter API key not found. Run `remy config` to set it up."
             )
-        return OpenRouterProvider(api_key=api_key, model=config.model, base_url=base_url)
+        return OpenRouterProvider(
+            api_key=api_key, model=config.model, base_url=base_url
+        )
 
     elif provider_name == "groq":
         if not api_key:

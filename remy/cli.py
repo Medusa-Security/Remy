@@ -6,7 +6,6 @@ dispatches to the config wizard, and wires up all subcommands.
 """
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -37,6 +36,7 @@ def _is_first_run() -> bool:
 def _load_config_or_exit():
     """Load config or print a helpful redirect and exit."""
     from remy.config.store import load_config
+
     cfg = load_config()
     if cfg is None:
         console.print(
@@ -52,6 +52,7 @@ def _load_config_or_exit():
 
 
 # ── Root command ──────────────────────────────────────────────────────────────
+
 
 @click.group(invoke_without_command=True)
 @click.pass_context
@@ -76,20 +77,28 @@ def main(ctx: click.Context) -> None:
             )
         )
         from remy.config.wizard import run_wizard
+
         cfg = run_wizard()
         # After wizard, offer to run a scan immediately
         if cfg is not None:
             import questionary
+
             if questionary.confirm(
                 "\nConfiguration saved! Run a quick scan of the current directory now?",
                 default=True,
             ).ask():
                 _run_scan(
-                    path=".", deep=cfg.scan_defaults.deep,
-                    secrets_only=False, api_surface=False,
-                    bypass_check=False, deps=False, fmt="text",
-                    output=None, no_prompt=False,
-                    min_severity="INFO", config=cfg,
+                    path=".",
+                    deep=cfg.scan_defaults.deep,
+                    secrets_only=False,
+                    api_surface=False,
+                    bypass_check=False,
+                    deps=False,
+                    fmt="text",
+                    output=None,
+                    no_prompt=False,
+                    min_severity="INFO",
+                    config=cfg,
                 )
     else:
         # Default: quick scan of cwd
@@ -97,24 +106,37 @@ def main(ctx: click.Context) -> None:
         _run_scan(
             path=".",
             deep=cfg.scan_defaults.deep,
-            secrets_only=False, api_surface=False,
-            bypass_check=False, deps=False, fmt="text",
-            output=None, no_prompt=False,
-            min_severity="INFO", config=cfg,
+            secrets_only=False,
+            api_surface=False,
+            bypass_check=False,
+            deps=False,
+            fmt="text",
+            output=None,
+            no_prompt=False,
+            min_severity="INFO",
+            config=cfg,
         )
 
 
 # ── scan ──────────────────────────────────────────────────────────────────────
 
+
 @main.command()
 @click.argument("path", default=".", type=click.Path(exists=True))
-@click.option("--deep", is_flag=True, help="Enable LLM logic-bug pass in addition to SAST")
-@click.option("--secrets-only", is_flag=True, help="Hardcoded key / credential scan only")
-@click.option("--api-surface", is_flag=True, help="Exposed route + rate-limit audit only")
+@click.option(
+    "--deep", is_flag=True, help="Enable LLM logic-bug pass in addition to SAST"
+)
+@click.option(
+    "--secrets-only", is_flag=True, help="Hardcoded key / credential scan only"
+)
+@click.option(
+    "--api-surface", is_flag=True, help="Exposed route + rate-limit audit only"
+)
 @click.option("--bypass-check", is_flag=True, help="Auth/logic bypass detection only")
 @click.option("--deps", is_flag=True, help="Dependency vulnerability scan only")
 @click.option(
-    "--format", "fmt",
+    "--format",
+    "fmt",
     type=click.Choice(["text", "json"]),
     default="text",
     help="Output format (default: text)",
@@ -127,10 +149,23 @@ def main(ctx: click.Context) -> None:
     help="Only show findings at this severity or above (default: INFO = show all)",
 )
 @click.option(
-    "--no-prompt", is_flag=True, default=False,
+    "--no-prompt",
+    is_flag=True,
+    default=False,
     help="Skip Fix Prompt generation (useful in CI)",
 )
-def scan(path, deep, secrets_only, api_surface, bypass_check, deps, fmt, output, min_severity, no_prompt):
+def scan(
+    path,
+    deep,
+    secrets_only,
+    api_surface,
+    bypass_check,
+    deps,
+    fmt,
+    output,
+    min_severity,
+    no_prompt,
+):
     """Scan a path for bugs and vulnerabilities.
 
     PATH defaults to the current working directory.
@@ -139,15 +174,33 @@ def scan(path, deep, secrets_only, api_surface, bypass_check, deps, fmt, output,
     cfg = _load_config_or_exit()
     use_deep = deep or cfg.scan_defaults.deep
     _run_scan(
-        path=path, deep=use_deep, secrets_only=secrets_only,
-        api_surface=api_surface, bypass_check=bypass_check,
-        deps=deps, fmt=fmt, output=output, no_prompt=no_prompt,
-        min_severity=min_severity, config=cfg,
+        path=path,
+        deep=use_deep,
+        secrets_only=secrets_only,
+        api_surface=api_surface,
+        bypass_check=bypass_check,
+        deps=deps,
+        fmt=fmt,
+        output=output,
+        no_prompt=no_prompt,
+        min_severity=min_severity,
+        config=cfg,
     )
 
 
-def _run_scan(path, deep, secrets_only, api_surface, bypass_check,
-              deps, fmt, output, no_prompt, min_severity, config):
+def _run_scan(
+    path,
+    deep,
+    secrets_only,
+    api_surface,
+    bypass_check,
+    deps,
+    fmt,
+    output,
+    no_prompt,
+    min_severity,
+    config,
+):
     """Internal scan runner — shared by `remy` (default) and `remy scan`."""
     from remy.scanners.orchestrator import ScanOrchestrator, ScanOptions
     from remy.report.terminal_report import TerminalReporter
@@ -182,8 +235,10 @@ def _run_scan(path, deep, secrets_only, api_surface, bypass_check,
             "[dim]For a full traceback, run: python -m remy scan with REMY_DEBUG=1[/dim]"
         )
         import os
+
         if os.environ.get("REMY_DEBUG"):
             import traceback
+
             traceback.print_exc()
         sys.exit(1)
 
@@ -228,6 +283,7 @@ def _run_scan(path, deep, secrets_only, api_surface, bypass_check,
 def _cache_report(report) -> None:
     """Persist scan report to ~/.remy/last_scan.json for prompt regeneration."""
     from remy.report.json_export import export_json
+
     try:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         CACHE_FILE.write_text(export_json(report), encoding="utf-8")
@@ -236,6 +292,7 @@ def _cache_report(report) -> None:
 
 
 # ── prompt ────────────────────────────────────────────────────────────────────
+
 
 @main.command()
 @click.option("--copy", is_flag=True, help="Copy Fix Prompt to clipboard")
@@ -249,13 +306,11 @@ def prompt(copy: bool, path: str) -> None:
     from remy.report.prompt_builder import save_prompt_from_cache
 
     # Check local .remy/ directory first (always numbered now)
-    local_prompt_1 = Path(path) / ".remy" / "fix_prompt_1.md"
+    Path(path) / ".remy" / "fix_prompt_1.md"
     local_prompt_dir = Path(path) / ".remy"
 
     if local_prompt_dir.exists() and any(local_prompt_dir.glob("fix_prompt_*.md")):
-        prompt_paths = sorted(
-            str(p) for p in local_prompt_dir.glob("fix_prompt_*.md")
-        )
+        prompt_paths = sorted(str(p) for p in local_prompt_dir.glob("fix_prompt_*.md"))
     elif CACHE_FILE.exists():
         # Regenerate from cache
         prompt_paths = save_prompt_from_cache(CACHE_FILE)
@@ -285,11 +340,14 @@ def prompt(copy: bool, path: str) -> None:
     if copy:
         try:
             import pyperclip
+
             text = Path(prompt_paths[0]).read_text(encoding="utf-8")
             pyperclip.copy(text)
             console.print("[green]✅ Copied to clipboard![/]")
         except ImportError:
-            console.print("[yellow]pyperclip not installed. Run: pip install pyperclip[/]")
+            console.print(
+                "[yellow]pyperclip not installed. Run: pip install pyperclip[/]"
+            )
         except Exception as e:
             console.print(
                 f"[yellow]Could not copy to clipboard: {e}[/]\n"
@@ -299,6 +357,7 @@ def prompt(copy: bool, path: str) -> None:
 
 # ── config ────────────────────────────────────────────────────────────────────
 
+
 @main.group(invoke_without_command=True)
 @click.pass_context
 def config(ctx: click.Context) -> None:
@@ -306,6 +365,7 @@ def config(ctx: click.Context) -> None:
     if ctx.invoked_subcommand is None:
         print_banner(console)
         from remy.config.wizard import run_wizard
+
         run_wizard()
 
 
@@ -329,6 +389,7 @@ def config_show() -> None:
 def config_set_provider() -> None:
     """Change provider and model without running the full wizard."""
     from remy.config.wizard import run_provider_step
+
     run_provider_step()
 
 
@@ -338,7 +399,6 @@ def config_set_provider() -> None:
 )
 def config_reset() -> None:
     """Delete all Remy config and start fresh (runs wizard on next invocation)."""
-    import shutil
 
     deleted = []
     if CONFIG_FILE.exists():
@@ -350,13 +410,22 @@ def config_reset() -> None:
 
     # Offer to remove keyring entries
     try:
-        from remy.config.store import load_config
         import questionary
+
         if questionary.confirm(
             "Also remove stored API keys from the OS keyring?", default=False
         ).ask():
             import keyring
-            for provider in ["openrouter", "groq", "openai", "anthropic", "xai", "nvidia_nim", "ollama"]:
+
+            for provider in [
+                "openrouter",
+                "groq",
+                "openai",
+                "anthropic",
+                "xai",
+                "nvidia_nim",
+                "ollama",
+            ]:
                 try:
                     keyring.delete_password("remy-agent", f"{provider}_api_key")
                 except Exception:
@@ -381,6 +450,7 @@ def config_reset() -> None:
 
 # ── providers ─────────────────────────────────────────────────────────────────
 
+
 @main.group()
 def providers() -> None:
     """List and inspect supported LLM providers."""
@@ -391,10 +461,12 @@ def providers() -> None:
 def providers_list() -> None:
     """List all supported providers with required keys and notes."""
     from remy.ui.tables import render_providers_table
+
     render_providers_table(console)
 
 
 # ── version ───────────────────────────────────────────────────────────────────
+
 
 @main.command()
 def version() -> None:

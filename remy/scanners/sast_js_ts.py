@@ -190,27 +190,42 @@ def _load_yaml_rules() -> list[_Rule]:
     """Load additional rules from javascript_rules.yaml."""
     try:
         import yaml
-        rules_path = Path(__file__).parent.parent / "rules" / "sast_rules" / "javascript_rules.yaml"
+
+        rules_path = (
+            Path(__file__).parent.parent
+            / "rules"
+            / "sast_rules"
+            / "javascript_rules.yaml"
+        )
         if not rules_path.exists():
             return []
         with open(rules_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         sev_map = {
-            "CRITICAL": Severity.CRITICAL, "HIGH": Severity.HIGH,
-            "MEDIUM": Severity.MEDIUM, "LOW": Severity.LOW, "INFO": Severity.INFO,
+            "CRITICAL": Severity.CRITICAL,
+            "HIGH": Severity.HIGH,
+            "MEDIUM": Severity.MEDIUM,
+            "LOW": Severity.LOW,
+            "INFO": Severity.INFO,
         }
         result = []
         for rule in data.get("rules", []):
             try:
-                result.append(_Rule(
-                    id=rule.get("id", "JS_YAML"),
-                    name=rule["name"],
-                    pattern=re.compile(rule["pattern"]),
-                    severity=sev_map.get(rule.get("severity", "HIGH"), Severity.HIGH),
-                    cwe=rule.get("cwe", "CWE-0"),
-                    remediation=rule.get("remediation", "Review and fix the flagged pattern."),
-                    confidence=0.75,
-                ))
+                result.append(
+                    _Rule(
+                        id=rule.get("id", "JS_YAML"),
+                        name=rule["name"],
+                        pattern=re.compile(rule["pattern"]),
+                        severity=sev_map.get(
+                            rule.get("severity", "HIGH"), Severity.HIGH
+                        ),
+                        cwe=rule.get("cwe", "CWE-0"),
+                        remediation=rule.get(
+                            "remediation", "Review and fix the flagged pattern."
+                        ),
+                        confidence=0.75,
+                    )
+                )
             except (re.error, KeyError):
                 continue
         return result

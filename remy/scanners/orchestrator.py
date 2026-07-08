@@ -8,7 +8,7 @@ and assembles the final ScanReport with live progress display.
 import asyncio
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -32,14 +32,15 @@ from .dependency_scanner import DependencyScanner
 @dataclass
 class ScanOptions:
     """Controls which scanners are enabled and scan parameters."""
-    deep: bool = False               # Enable LLM logic-bug pass
-    secrets_only: bool = False       # Only run secrets scanner
-    api_surface_only: bool = False   # Only run API surface scanner
+
+    deep: bool = False  # Enable LLM logic-bug pass
+    secrets_only: bool = False  # Only run secrets scanner
+    api_surface_only: bool = False  # Only run API surface scanner
     bypass_check_only: bool = False  # Only run auth bypass scanner
-    deps_only: bool = False          # Only run dependency scanner
-    max_file_size_kb: int = 1000     # Maximum file size to scan
-    respect_gitignore: bool = True   # Honor .gitignore / .remyignore
-    min_severity: str = "INFO"       # Minimum severity to include in results
+    deps_only: bool = False  # Only run dependency scanner
+    max_file_size_kb: int = 1000  # Maximum file size to scan
+    respect_gitignore: bool = True  # Honor .gitignore / .remyignore
+    min_severity: str = "INFO"  # Minimum severity to include in results
 
 
 class ScanOrchestrator:
@@ -82,6 +83,7 @@ class ScanOrchestrator:
             # Lazy import to avoid circular dependency
             from remy.providers.registry import get_provider
             from .llm_logic_scanner import LlmLogicScanner
+
             try:
                 provider = get_provider(self.config)
                 scanners.append(LlmLogicScanner(provider))
@@ -151,7 +153,6 @@ class ScanOrchestrator:
         all_findings: list[Finding] = []
 
         async with ScanProgress(console=self.console) as progress:
-            tasks_map: dict[int, str] = {}
             scanner_task_ids: dict[str, int] = {}
 
             for scanner in scanners:
@@ -195,8 +196,7 @@ class ScanOrchestrator:
         _sev_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
         _min_order = _sev_order.get(self.options.min_severity.upper(), 4)
         unique_findings = [
-            f for f in unique_findings
-            if f.severity.sort_order <= _min_order
+            f for f in unique_findings if f.severity.sort_order <= _min_order
         ]
 
         # ── 6. Sort: CRITICAL first, then by file, then by line ───────────────

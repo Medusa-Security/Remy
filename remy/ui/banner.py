@@ -42,7 +42,7 @@ def print_banner(console: Console) -> None:
 
     panel = Panel(
         Align.center(content),
-        border_style="color(220)",   # gold border
+        border_style="color(220)",  # gold border
         padding=(1, 4),
         expand=False,
     )

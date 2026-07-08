@@ -7,9 +7,8 @@ downstream processing pipelines.
 """
 
 import json
-from datetime import datetime
 
-from .models import ScanReport, Finding, Severity
+from .models import ScanReport, Finding
 
 
 def _finding_to_dict(finding: Finding) -> dict:

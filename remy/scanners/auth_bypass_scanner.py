@@ -171,7 +171,18 @@ class AuthBypassScanner(Scanner):
             return []
 
         # Skip non-code files
-        code_exts = {".py", ".js", ".ts", ".jsx", ".tsx", ".rb", ".php", ".go", ".java", ".cs"}
+        code_exts = {
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".rb",
+            ".php",
+            ".go",
+            ".java",
+            ".cs",
+        }
         skip_langs = {"yaml", "json", "toml", "markdown"}
         if language in skip_langs and path.suffix not in code_exts:
             return []

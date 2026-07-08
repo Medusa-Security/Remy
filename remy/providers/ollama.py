@@ -36,12 +36,16 @@ class OllamaProvider(Provider):
                         ModelInfo(
                             id=name,
                             name=name,
-                            notes=f"Local model, size: {size_gb}" if size_gb else "Local model",
+                            notes=f"Local model, size: {size_gb}"
+                            if size_gb
+                            else "Local model",
                         )
                     )
                 return models
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"Ollama API error: {e.response.status_code}") from e
+                raise ProviderError(
+                    f"Ollama API error: {e.response.status_code}"
+                ) from e
             except httpx.RequestError as e:
                 raise ProviderError(
                     f"Cannot connect to Ollama at {self.base_url}. "
@@ -65,7 +69,9 @@ class OllamaProvider(Provider):
                 data = resp.json()
                 return data["message"]["content"]
             except httpx.HTTPStatusError as e:
-                raise ProviderError(f"Ollama completion error: {e.response.status_code} {e.response.text}") from e
+                raise ProviderError(
+                    f"Ollama completion error: {e.response.status_code} {e.response.text}"
+                ) from e
             except (httpx.RequestError, KeyError) as e:
                 raise ProviderError(f"Ollama request failed: {e}") from e
 

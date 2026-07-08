@@ -20,11 +20,23 @@ from .models import ScanReport, Severity
 
 
 LANG_MAP = {
-    ".py": "python", ".js": "javascript", ".ts": "typescript",
-    ".jsx": "javascript", ".tsx": "typescript", ".go": "go",
-    ".java": "java", ".rs": "rust", ".rb": "ruby",
-    ".php": "php", ".c": "c", ".cpp": "cpp", ".sh": "bash",
-    ".yml": "yaml", ".yaml": "yaml", ".json": "json", ".toml": "toml",
+    ".py": "python",
+    ".js": "javascript",
+    ".ts": "typescript",
+    ".jsx": "javascript",
+    ".tsx": "typescript",
+    ".go": "go",
+    ".java": "java",
+    ".rs": "rust",
+    ".rb": "ruby",
+    ".php": "php",
+    ".c": "c",
+    ".cpp": "cpp",
+    ".sh": "bash",
+    ".yml": "yaml",
+    ".yaml": "yaml",
+    ".json": "json",
+    ".toml": "toml",
 }
 
 
@@ -36,7 +48,9 @@ def _detect_lang(file_path: str) -> str:
 class TerminalReporter:
     """Renders ScanReport output to the terminal using Rich components."""
 
-    def __init__(self, console: Console | None = None, target_path: str | None = None) -> None:
+    def __init__(
+        self, console: Console | None = None, target_path: str | None = None
+    ) -> None:
         self.console = console or Console()
         self._target = Path(target_path).resolve() if target_path else None
 
@@ -77,10 +91,10 @@ class TerminalReporter:
 
         severity_data = [
             (Severity.CRITICAL, report.critical_count),
-            (Severity.HIGH,     report.high_count),
-            (Severity.MEDIUM,   report.medium_count),
-            (Severity.LOW,      report.low_count),
-            (Severity.INFO,     report.info_count),
+            (Severity.HIGH, report.high_count),
+            (Severity.MEDIUM, report.medium_count),
+            (Severity.LOW, report.low_count),
+            (Severity.INFO, report.info_count),
         ]
         max_count = max((c for _, c in severity_data), default=1) or 1
         bar_width = 16
@@ -158,9 +172,7 @@ class TerminalReporter:
                 # Remediation
                 hint = finding.remediation_hint
                 if hint:
-                    node.add(
-                        Text(f"🔧 {hint}", style="color(220) dim")
-                    )
+                    node.add(Text(f"🔧 {hint}", style="color(220) dim"))
 
             self.console.print(tree)
             self.console.print()
