@@ -14,6 +14,9 @@ Remy is a terminal-native AI security and bug-scanning agent. It performs static
 
 Remy is the **finder and prompt-compiler**, not the editor. That makes it lightweight, model-agnostic, and safe to run on any codebase without needing write access.
 
+> [!TIP]
+> 📖 Create a .remyignore file to restrict which files and directories the Remy Agent can access during scans.
+
 ---
 
 ## Features
