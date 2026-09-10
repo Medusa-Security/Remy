@@ -14,19 +14,19 @@ def scanner():
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class TestSecretsScanner:
     def test_detects_stripe_live_key(self, scanner):
-        content = 'STRIPE_KEY = "FAKE_STRIPE_API_KEY"'
+        content = 'STRIPE_KEY = "sk_live_abcdefghijklmnopqrstuvwxyz"'
         findings = run(scanner.scan_file(Path("test.py"), content, "python"))
         assert any("Stripe" in f.title for f in findings)
         assert any(f.severity == Severity.CRITICAL for f in findings)
 
     def test_detects_stripe_test_key_as_medium(self, scanner):
         # sk_test_ keys — use value without "test" in content to avoid placeholder filter
-        content = 'STRIPE_KEY = "FAKE_STRIPE_API_KEY"'
+        content = 'STRIPE_KEY = "sk_test_abcdefghijklmnopqrstuvwxyz"'
         findings = run(scanner.scan_file(Path("test.py"), content, "python"))
         # Rule name is "Stripe Test Key" — title is "Hardcoded Stripe Test Key"
         assert any("Stripe" in f.title for f in findings)
@@ -76,11 +76,11 @@ class TestSecretsScanner:
         assert len(findings) == 0
 
     def test_redacts_secret_in_description(self, scanner):
-        content = 'KEY = "FAKE_STRIPE_API_KEY"'
+        content = 'KEY = "sk_live_abcdefghijklmnopqrstuvwxyz"'
         findings = run(scanner.scan_file(Path("test.py"), content, "python"))
         for f in findings:
             # Full secret value should not appear in description
-            assert "FAKE_STRIPE_API_KEY" not in f.description
+            assert "sk_live_abcdefghijklmnopqrstuvwxyz" not in f.description
 
     def test_high_entropy_detection(self, scanner):
         # High-entropy string on a line with a secret-context variable name
@@ -92,7 +92,7 @@ class TestSecretsScanner:
 
     def test_scan_file_is_language_agnostic(self, scanner):
         """Secrets scanner should work on any language."""
-        content = 'const STRIPE_KEY = "FAKE_STRIPE_API_KEY";'
+        content = 'const STRIPE_KEY = "sk_live_abcdefghijklmnopqrstuvwxyz";'
         findings_js = run(scanner.scan_file(Path("test.js"), content, "javascript"))
         findings_py = run(scanner.scan_file(Path("test.py"), content, "python"))
         assert len(findings_js) > 0

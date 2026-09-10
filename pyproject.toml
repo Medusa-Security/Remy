@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "remy-agent"
-version = "0.1.1"
+version = "0.2.1"
 description = "AI-Powered Codebase Bug & Vulnerability Scanning CLI"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -54,6 +54,9 @@ dev = [
     "ruff>=0.1.0",
     "black>=23.0.0",
     "pre-commit>=3.0.0"
+]
+medusa = [
+    "playwright>=1.40.0"
 ]
 
 [project.scripts]

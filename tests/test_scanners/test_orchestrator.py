@@ -19,7 +19,7 @@ def make_config():
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class TestScanOrchestrator:
@@ -47,7 +47,9 @@ class TestScanOrchestrator:
         assert report.total_count > 0
 
     def test_secrets_only_flag(self, tmp_path):
-        (tmp_path / "test.py").write_text('API_KEY = "FAKE_STRIPE_API_KEY"')
+        (tmp_path / "test.py").write_text(
+            'API_KEY = "sk_live_abcdefghijklmnopqrstuvwxyz"'
+        )
         cfg = make_config()
         opts = ScanOptions(secrets_only=True)
         orch = ScanOrchestrator(config=cfg, options=opts)
@@ -57,7 +59,9 @@ class TestScanOrchestrator:
 
     def test_deduplication(self, tmp_path):
         """Duplicate findings (same fingerprint) should be deduplicated."""
-        (tmp_path / "test.py").write_text('API_KEY = "FAKE_STRIPE_API_KEY"')
+        (tmp_path / "test.py").write_text(
+            'API_KEY = "sk_live_abcdefghijklmnopqrstuvwxyz"'
+        )
         cfg = make_config()
         opts = ScanOptions(secrets_only=True)
         orch = ScanOrchestrator(config=cfg, options=opts)

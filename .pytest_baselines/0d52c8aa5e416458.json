@@ -1,0 +1,9 @@
+{
+  "target": "http://y",
+  "duration_seconds": 0.0,
+  "finding_counts": {},
+  "endpoints_covered": 0,
+  "p95_latency_ms": 100.0,
+  "error_count": 0,
+  "runs": 1
+}

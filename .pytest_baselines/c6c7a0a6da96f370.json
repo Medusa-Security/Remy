@@ -1,0 +1,12 @@
+{
+  "target": "http://127.0.0.1:50386",
+  "duration_seconds": 0.14,
+  "finding_counts": {
+    "HIGH": 3,
+    "MEDIUM": 2
+  },
+  "endpoints_covered": 2,
+  "p95_latency_ms": 21.0,
+  "error_count": 3,
+  "runs": 1
+}

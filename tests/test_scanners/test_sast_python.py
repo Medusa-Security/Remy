@@ -14,7 +14,7 @@ def scanner():
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class TestPythonSastScanner:
@@ -103,3 +103,26 @@ class TestPythonSastScanner:
         code = "def broken(:"
         findings = run(scanner.scan_file(Path("test.py"), code, "python"))
         assert findings == []  # Should not raise, just return empty
+
+    def test_taint_tracking_eval_user_input(self, scanner):
+        code = """@app.route('/run')
+def run():
+    cmd = request.args.get('cmd')
+    eval(cmd)
+"""
+        findings = run(scanner.scan_file(Path("test.py"), code, "python"))
+        assert any(
+            "Tainted Dataflow" in f.title and f.confidence == 0.95 for f in findings
+        )
+
+    def test_taint_tracking_safe_literal_eval(self, scanner):
+        code = """def safe():
+    cmd = '1 + 1'
+    eval(cmd)
+"""
+        findings = run(scanner.scan_file(Path("test.py"), code, "python"))
+        # Since cmd is known literal constant from symbol table, should not flag dynamic argument
+        assert not any(
+            "Dangerous use of `eval()`" in f.title or "Tainted" in f.title
+            for f in findings
+        )

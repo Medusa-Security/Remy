@@ -35,17 +35,19 @@ class _Rule(NamedTuple):
 BUILTIN_RULES: list[_Rule] = [
     _Rule(
         id="JS001",
-        name="eval() with Dynamic Argument",
-        pattern=re.compile(r"\beval\s*\(\s*(?!['\"`])"),
+        name="eval() / new Function() with Dynamic Argument",
+        pattern=re.compile(r"\beval\s*\(\s*(?!['\"`])|new\s+Function\s*\("),
         severity=Severity.HIGH,
-        cwe="CWE-78",
-        remediation="Never use eval() with dynamic or user-supplied input. Use JSON.parse() for data or a safe template engine.",
+        cwe="CWE-94",
+        remediation="Never use eval() or new Function() with dynamic or user-supplied input. Use JSON.parse() for data or a safe template engine.",
         confidence=0.85,
     ),
     _Rule(
         id="JS002",
-        name="child_process.exec with String Concatenation",
-        pattern=re.compile(r"child_process\.exec\s*\(\s*[^,)\n]*\+"),
+        name="child_process.exec/execSync with Dynamic Command",
+        pattern=re.compile(
+            r"(?:child_process\.)?exec(?:Sync)?\s*\(\s*[^,)\n]*(?:\+|`[^`]*\$\{)"
+        ),
         severity=Severity.CRITICAL,
         cwe="CWE-78",
         remediation="Use child_process.execFile() with an explicit argument array. Never concatenate user input into shell commands.",
@@ -53,11 +55,11 @@ BUILTIN_RULES: list[_Rule] = [
     ),
     _Rule(
         id="JS003",
-        name="innerHTML Assignment (XSS Risk)",
-        pattern=re.compile(r"\.innerHTML\s*[+]?=(?!=)"),
+        name="innerHTML / outerHTML Assignment (XSS Risk)",
+        pattern=re.compile(r"\.(?:innerHTML|outerHTML)\s*[+]?=(?!=)"),
         severity=Severity.HIGH,
         cwe="CWE-79",
-        remediation="Use textContent/innerText for plain text. For HTML, sanitize with DOMPurify before assigning to innerHTML.",
+        remediation="Use textContent/innerText for plain text. For HTML, sanitize with DOMPurify before assigning to innerHTML or outerHTML.",
         confidence=0.80,
     ),
     _Rule(
@@ -71,8 +73,10 @@ BUILTIN_RULES: list[_Rule] = [
     ),
     _Rule(
         id="JS005",
-        name="Prototype Pollution Pattern",
-        pattern=re.compile(r"__proto__\s*[\[.]|constructor\s*\.\s*prototype\s*[\[.]"),
+        name="Prototype Pollution Pattern (__proto__ / Object.assign / _.merge)",
+        pattern=re.compile(
+            r"__proto__\s*[\[.]|constructor\s*\.\s*prototype\s*[\[.]|Object\.assign\s*\(\s*[^,]+,\s*req\.(?:body|query|params)|_\.merge\s*\(\s*[^,]+,\s*req\."
+        ),
         severity=Severity.HIGH,
         cwe="CWE-1321",
         remediation="Validate keys with Object.prototype.hasOwnProperty.call(). Use Object.create(null) for safe maps. Block '__proto__' keys at input boundaries.",
@@ -182,6 +186,17 @@ BUILTIN_RULES: list[_Rule] = [
         cwe="CWE-338",
         remediation="Use crypto.randomBytes(32).toString('hex') for security tokens.",
         confidence=0.85,
+    ),
+    _Rule(
+        id="JS016",
+        name="Weak Cryptography (MD5 / SHA-1)",
+        pattern=re.compile(
+            r"crypto\.createHash\s*\(\s*['\"](?:md5|sha1)['\"]\s*\)", re.IGNORECASE
+        ),
+        severity=Severity.MEDIUM,
+        cwe="CWE-327",
+        remediation="Use secure hash algorithms such as SHA-256 (`crypto.createHash('sha256')`) or SHA-512.",
+        confidence=0.90,
     ),
 ]
 

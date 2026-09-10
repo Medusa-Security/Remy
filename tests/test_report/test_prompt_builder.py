@@ -96,7 +96,7 @@ class TestPromptBuilder:
         assert "FAKE_STRIPE_API_KEY" not in result[0]
 
     def test_redact_secret_function(self):
-        text = 'key = "FAKE_STRIPE_API_KEY"'
+        text = 'key = "sk_live_abcdefghijklmnopqrstuvwxyz"'
         redacted = _redact_secret(text)
         assert "sk_l" in redacted  # first 4 chars preserved
         assert "wxyz" in redacted  # last 4 chars preserved
