@@ -7,7 +7,6 @@ API fuzzer, stateful E2E, and runtime tracer exercise against live HTTP.
 
 from __future__ import annotations
 
-import json
 import socketserver
 import threading
 from http.server import BaseHTTPRequestHandler
@@ -15,7 +14,7 @@ from pathlib import Path
 
 from remy.medusa.events import Event, EventKind, EventStatus
 from remy.medusa.graph_builder import build, RuntimeGraph
-from remy.medusa.root_cause import chain_for, explain, find_failures
+from remy.medusa.root_cause import chain_for, explain
 from remy.medusa.regression import Baseline, RegressionStore
 from remy.medusa import MedusaOrchestrator, MedusaTarget
 

@@ -1,8 +1,6 @@
 """Tests for Remy CLI commands (init-ci, scan --fail-on, etc.)."""
 
-from pathlib import Path
 from click.testing import CliRunner
-import pytest
 
 from remy.cli import main
 

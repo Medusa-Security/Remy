@@ -5,7 +5,6 @@ DO NOT deploy this code. It contains deliberate security vulnerabilities
 designed to be detected by Remy's scanning engines.
 """
 
-import os
 import pickle
 import subprocess
 import random

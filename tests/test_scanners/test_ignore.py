@@ -1,9 +1,7 @@
 """Tests for SuppressionFilter (.remyignore & inline comments)."""
 
-from pathlib import Path
-import pytest
 
-from remy.utils.ignore import SuppressionFilter, CweIgnoreRule
+from remy.utils.ignore import SuppressionFilter
 from remy.report.models import Finding, Severity
 
 

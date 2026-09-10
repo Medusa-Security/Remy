@@ -2,7 +2,6 @@
 
 import json
 from datetime import datetime
-import pytest
 
 from remy.report.models import Finding, Severity, ScanReport
 from remy.report.json_export import export_json, export_sarif, export_gitlab_sast

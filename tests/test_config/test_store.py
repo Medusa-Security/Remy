@@ -1,6 +1,5 @@
 """Tests for config store read/write."""
 
-import pytest
 import tomlkit
 from pathlib import Path
 

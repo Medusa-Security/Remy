@@ -1,8 +1,6 @@
 """Tests for the Fix Prompt builder."""
 
 from datetime import datetime
-from pathlib import Path
-import pytest
 
 from remy.report.models import Finding, Severity, ScanReport
 from remy.report.prompt_builder import build_fix_prompt, _redact_secret

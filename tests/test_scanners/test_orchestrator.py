@@ -2,12 +2,10 @@
 
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
 import pytest
 
 from remy.scanners.orchestrator import ScanOrchestrator, ScanOptions
 from remy.config.schema import Config, ScanDefaults
-from remy.report.models import Finding, Severity
 
 
 def make_config():
@@ -33,7 +31,6 @@ class TestScanOrchestrator:
 
     def test_scan_detects_findings_in_fixture(self):
         """Smoke test: scan the vulnerable fixture and expect findings."""
-        import os
 
         fixture_path = Path(__file__).parent.parent / "fixtures" / "vulnerable_app"
         if not fixture_path.exists():
