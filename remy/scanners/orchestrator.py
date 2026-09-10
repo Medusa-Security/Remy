@@ -41,7 +41,9 @@ class ScanOptions:
     max_file_size_kb: int = 1000  # Maximum file size to scan
     respect_gitignore: bool = True  # Honor .gitignore / .remyignore
     min_severity: str = "INFO"  # Minimum severity to include in results
-    only_paths: Optional[set] = None  # If set, scan only these resolved paths (PR-diff mode)
+    only_paths: Optional[set] = (
+        None  # If set, scan only these resolved paths (PR-diff mode)
+    )
 
 
 class ScanOrchestrator:

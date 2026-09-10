@@ -27,10 +27,22 @@ class GNode:
 class GEdge:
     source: str
     target: str
-    relation: str  # navigate_to | requests | calls | results_in | triggers | transitions
+    relation: (
+        str  # navigate_to | requests | calls | results_in | triggers | transitions
+    )
 
 
-_SERVICE_HINTS = ("redis", "celery", "postgres", "mysql", "openai", "express", "worker", "queue", "db")
+_SERVICE_HINTS = (
+    "redis",
+    "celery",
+    "postgres",
+    "mysql",
+    "openai",
+    "express",
+    "worker",
+    "queue",
+    "db",
+)
 
 
 def _service_name(target: str) -> Optional[str]:
@@ -117,7 +129,14 @@ def build(events: list[Event], findings: list) -> RuntimeGraph:
                 fid,
                 "FINDING",
                 f.title,
-                {"severity": f.severity.value if hasattr(f.severity, "value") else str(f.severity), "cwe": f.cwe},
+                {
+                    "severity": (
+                        f.severity.value
+                        if hasattr(f.severity, "value")
+                        else str(f.severity)
+                    ),
+                    "cwe": f.cwe,
+                },
             )
         )
         loc = f.file

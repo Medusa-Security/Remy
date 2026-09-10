@@ -26,7 +26,6 @@ from .regression import Baseline, RegressionReport, RegressionStore
 from .root_cause import RootCause, explain, find_failures
 from .target import MedusaTarget
 
-
 ALL_AGENTS = {
     "browser": BrowserAgent,
     "workflow": WorkflowAgent,
@@ -77,7 +76,9 @@ class MedusaOrchestrator:
             return dict(ALL_AGENTS)
         unknown = [n for n in names if n not in ALL_AGENTS]
         if unknown:
-            raise ValueError(f"Unknown agents: {unknown}. Available: {sorted(ALL_AGENTS)}")
+            raise ValueError(
+                f"Unknown agents: {unknown}. Available: {sorted(ALL_AGENTS)}"
+            )
         return {n: ALL_AGENTS[n] for n in names}
 
     def run(
@@ -97,13 +98,19 @@ class MedusaOrchestrator:
             agent = cls() if name != "workflow" else cls(self.workflow_path)
             if not agent.available():
                 skipped.append((name, "dependency unavailable"))
-                results.append(AgentResult(agent=name, skipped=True, skip_reason="dependency unavailable"))
+                results.append(
+                    AgentResult(
+                        agent=name, skipped=True, skip_reason="dependency unavailable"
+                    )
+                )
                 continue
             try:
                 results.append(agent.run(target, ctx))
             except Exception as e:  # noqa: BLE001
                 skipped.append((name, str(e)))
-                results.append(AgentResult(agent=name, skipped=True, skip_reason=str(e)))
+                results.append(
+                    AgentResult(agent=name, skipped=True, skip_reason=str(e))
+                )
 
         ctx.findings = _dedupe_findings(ctx.findings)
         graph = build_graph(ctx.events, ctx.findings)
@@ -118,14 +125,20 @@ class MedusaOrchestrator:
         if regression:
             counts: dict[str, int] = {}
             for f in ctx.findings:
-                sev = f.severity.value if hasattr(f.severity, "value") else str(f.severity)
+                sev = (
+                    f.severity.value
+                    if hasattr(f.severity, "value")
+                    else str(f.severity)
+                )
                 counts[sev] = counts.get(sev, 0) + 1
             p95 = _p95_latency(ctx.events)
             baseline = Baseline(
                 target=target.base_url,
                 duration_seconds=round(time.perf_counter() - start, 2),
                 finding_counts=counts,
-                endpoints_covered=len({e.target for e in ctx.events if e.kind.name == "REQUEST"}),
+                endpoints_covered=len(
+                    {e.target for e in ctx.events if e.kind.name == "REQUEST"}
+                ),
                 p95_latency_ms=p95,
                 error_count=len(find_failures(ctx.events)),
             )

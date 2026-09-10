@@ -18,7 +18,6 @@ from remy.medusa.root_cause import chain_for, explain
 from remy.medusa.regression import Baseline, RegressionStore
 from remy.medusa import MedusaOrchestrator, MedusaTarget
 
-
 # ── pure logic ────────────────────────────────────────────────────────────────
 
 
@@ -29,11 +28,18 @@ def test_graph_builder_links_endpoint_to_finding():
     ]
     ev[1].parent_id = ev[0].id
     findings = [
-        type("_F", (), {
-            "id": "api:0", "scanner": "api", "title": "crash",
-            "severity": type("S", (), {"value": "HIGH"})(), "cwe": "CWE-248",
-            "file": "POST /scan",
-        })()
+        type(
+            "_F",
+            (),
+            {
+                "id": "api:0",
+                "scanner": "api",
+                "title": "crash",
+                "severity": type("S", (), {"value": "HIGH"})(),
+                "cwe": "CWE-248",
+                "file": "POST /scan",
+            },
+        )()
     ]
     g = build(ev, findings)
     assert "endpoint:POST /scan" in g.nodes
@@ -45,18 +51,38 @@ def test_graph_builder_links_endpoint_to_finding():
 def test_root_cause_chain():
     click = Event.make(EventKind.CLICK, "browser", "Scan button")
     req = Event.make(EventKind.REQUEST, "browser", "POST /scan", parent_id=click.id)
-    exc = Event.make(EventKind.EXCEPTION, "browser", "POST /scan", parent_id=req.id, status=EventStatus.ERROR)
+    exc = Event.make(
+        EventKind.EXCEPTION,
+        "browser",
+        "POST /scan",
+        parent_id=req.id,
+        status=EventStatus.ERROR,
+    )
     chain = chain_for(exc.id, [click, req, exc])
-    assert [e.kind for e in chain] == [EventKind.CLICK, EventKind.REQUEST, EventKind.EXCEPTION]
+    assert [e.kind for e in chain] == [
+        EventKind.CLICK,
+        EventKind.REQUEST,
+        EventKind.EXCEPTION,
+    ]
     rc = explain(exc.id, [click, req, exc])
     assert "Scan button" in rc.explanation
 
 
 def test_regression_detects_new_critical():
     store = RegressionStore(root=Path(".pytest_baselines"))
-    prev = Baseline(target="http://x", finding_counts={"CRITICAL": 0}, p95_latency_ms=100.0, error_count=0)
+    prev = Baseline(
+        target="http://x",
+        finding_counts={"CRITICAL": 0},
+        p95_latency_ms=100.0,
+        error_count=0,
+    )
     store.save(prev)
-    cur = Baseline(target="http://x", finding_counts={"CRITICAL": 1}, p95_latency_ms=100.0, error_count=0)
+    cur = Baseline(
+        target="http://x",
+        finding_counts={"CRITICAL": 1},
+        p95_latency_ms=100.0,
+        error_count=0,
+    )
     rep = store.compare(cur, [])
     assert rep.has_regression
     assert any("new-critical" in f for f in rep.flags)
@@ -147,7 +173,9 @@ _SPEC = {
 def test_medusa_orchestrated_run():
     srv, port = _start_server()
     try:
-        target = MedusaTarget(base_url=f"http://127.0.0.1:{port}", auth_token="t", openapi_spec=_SPEC)
+        target = MedusaTarget(
+            base_url=f"http://127.0.0.1:{port}", auth_token="t", openapi_spec=_SPEC
+        )
         orch = MedusaOrchestrator(baseline_dir=".pytest_baselines")
         report = orch.run(target, agents=["api", "e2e", "workflow", "trace"])
 

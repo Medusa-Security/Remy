@@ -138,7 +138,9 @@ class Tracer:
         try:
             r = client.request(method, path, **kw)
             dt = (time.perf_counter() - t0) * 1000
-            self.ctx.response(self.agent, f"{method} {path}", parent=ev.id, duration_ms=dt)
+            self.ctx.response(
+                self.agent, f"{method} {path}", parent=ev.id, duration_ms=dt
+            )
             services = r.headers.get("x-remy-services")
             if services:
                 ev.meta["services"] = [s.strip() for s in services.split(",")]
@@ -154,5 +156,11 @@ class Tracer:
             return r
         except httpx.HTTPError as e:
             dt = (time.perf_counter() - t0) * 1000
-            self.ctx.exception(self.agent, f"{method} {path}", parent=ev.id, duration_ms=dt, detail=str(e))
+            self.ctx.exception(
+                self.agent,
+                f"{method} {path}",
+                parent=ev.id,
+                duration_ms=dt,
+                detail=str(e),
+            )
             raise

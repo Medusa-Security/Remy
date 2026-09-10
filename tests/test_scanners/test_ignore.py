@@ -1,6 +1,5 @@
 """Tests for SuppressionFilter (.remyignore & inline comments)."""
 
-
 from remy.utils.ignore import SuppressionFilter
 from remy.report.models import Finding, Severity
 

@@ -81,7 +81,12 @@ class RegressionStore:
 
     def compare(self, current: Baseline, new_findings: list) -> RegressionReport:
         prev = self.load(current.target)
-        report = RegressionReport(target=current.target, previous=prev, current=current, new_findings=new_findings)
+        report = RegressionReport(
+            target=current.target,
+            previous=prev,
+            current=current,
+            new_findings=new_findings,
+        )
 
         if prev is None:
             report.flags.append("baseline-created")
@@ -96,15 +101,23 @@ class RegressionStore:
 
         # latency regression (> 25%)
         if prev.p95_latency_ms > 0:
-            pct = (current.p95_latency_ms - prev.p95_latency_ms) / prev.p95_latency_ms * 100
+            pct = (
+                (current.p95_latency_ms - prev.p95_latency_ms)
+                / prev.p95_latency_ms
+                * 100
+            )
             report.latency_regression_pct = round(pct, 1)
             if pct >= 25:
-                report.flags.append(f"latency-regression:+{report.latency_regression_pct}%")
+                report.flags.append(
+                    f"latency-regression:+{report.latency_regression_pct}%"
+                )
 
         # coverage drop
         if current.endpoints_covered < prev.endpoints_covered:
             report.coverage_dropped = True
-            report.flags.append(f"coverage-drop:{prev.endpoints_covered}->{current.endpoints_covered}")
+            report.flags.append(
+                f"coverage-drop:{prev.endpoints_covered}->{current.endpoints_covered}"
+            )
 
         # error increase
         report.error_increase = current.error_count - prev.error_count

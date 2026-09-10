@@ -471,12 +471,17 @@ def prompt(copy: bool, path: str) -> None:
 
 @main.command()
 @click.argument("path", default=".", type=click.Path(exists=True))
-@click.option("--deep", is_flag=True, help="Include the LLM logic-bug pass when building the graph")
+@click.option(
+    "--deep",
+    is_flag=True,
+    help="Include the LLM logic-bug pass when building the graph",
+)
 @click.option(
     "--ask",
     default=None,
     type=click.Choice(
-        ["summary", "hotspots", "by-scanner", "unauthenticated", "secrets"], case_sensitive=False
+        ["summary", "hotspots", "by-scanner", "unauthenticated", "secrets"],
+        case_sensitive=False,
     ),
     help="Run a built-in graph query instead of printing the full tree",
 )
@@ -567,8 +572,14 @@ def diff(path: str, base: str) -> None:
 
 @main.command()
 @click.argument("path", default=".", type=click.Path(exists=True))
-@click.option("--deep", is_flag=True, help="Include the LLM logic-bug pass when scoring")
-@click.option("--url", default=None, help="Optional live app URL; folds runtime reachability into scores")
+@click.option(
+    "--deep", is_flag=True, help="Include the LLM logic-bug pass when scoring"
+)
+@click.option(
+    "--url",
+    default=None,
+    help="Optional live app URL; folds runtime reachability into scores",
+)
 def risk(path: str, deep: bool, url: str | None) -> None:
     """Rank findings by risk: severity x reachability x blast-radius.
 
@@ -610,15 +621,23 @@ def risk(path: str, deep: bool, url: str | None) -> None:
 
 @main.command()
 @click.option("--url", required=True, help="Base URL of the running app to test")
-@click.option("--spec", default=None, help="OpenAPI spec (YAML/JSON) describing the API surface")
+@click.option(
+    "--spec", default=None, help="OpenAPI spec (YAML/JSON) describing the API surface"
+)
 @click.option(
     "--agents",
     default="all",
     help="Comma-separated agents: browser,workflow,api,e2e,trace (or 'all')",
 )
-@click.option("--workflow", default=None, help="Workflow YAML/JSON for the workflow agent")
+@click.option(
+    "--workflow", default=None, help="Workflow YAML/JSON for the workflow agent"
+)
 @click.option("--token", default=None, help="Auth token injected as a Bearer header")
-@click.option("--baseline/--no-baseline", default=True, help="Compare against / save regression baseline")
+@click.option(
+    "--baseline/--no-baseline",
+    default=True,
+    help="Compare against / save regression baseline",
+)
 @click.option(
     "--format",
     "fmt",

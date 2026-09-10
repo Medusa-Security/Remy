@@ -7,7 +7,9 @@ from remy.knowledge import engine
 from remy.report.models import Finding, Severity
 
 
-def _finding(fid: str, scanner: str, severity: Severity, file: str, cwe="CWE-79", title="XSS"):
+def _finding(
+    fid: str, scanner: str, severity: Severity, file: str, cwe="CWE-79", title="XSS"
+):
     return Finding(
         id=fid,
         scanner=scanner,
@@ -25,9 +27,30 @@ def _finding(fid: str, scanner: str, severity: Severity, file: str, cwe="CWE-79"
 
 def _build() -> KnowledgeGraph:
     findings = [
-        _finding("a1", "secrets", Severity.CRITICAL, "src/app.py", cwe="CWE-798", title="Hardcoded AWS Key"),
-        _finding("b1", "api_surface", Severity.HIGH, "src/app.py", cwe="CWE-306", title="Unauthenticated route"),
-        _finding("c1", "sast_python", Severity.LOW, "src/util.py", cwe="CWE-390", title="Broad exception"),
+        _finding(
+            "a1",
+            "secrets",
+            Severity.CRITICAL,
+            "src/app.py",
+            cwe="CWE-798",
+            title="Hardcoded AWS Key",
+        ),
+        _finding(
+            "b1",
+            "api_surface",
+            Severity.HIGH,
+            "src/app.py",
+            cwe="CWE-306",
+            title="Unauthenticated route",
+        ),
+        _finding(
+            "c1",
+            "sast_python",
+            Severity.LOW,
+            "src/util.py",
+            cwe="CWE-390",
+            title="Broad exception",
+        ),
     ]
     return KnowledgeGraph.from_findings(findings, "src")
 

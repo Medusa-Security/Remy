@@ -26,8 +26,16 @@ class StatefulE2EAgent(BaseAgent):
 
     def run(self, target: MedusaTarget, ctx: AgentContext) -> AgentResult:
         base = target.base_url.rstrip("/")
-        owner = httpx.Client(base_url=base, timeout=target.timeout, verify=False, follow_redirects=True, headers=target.auth_headers)
-        guest = httpx.Client(base_url=base, timeout=target.timeout, verify=False, follow_redirects=True)
+        owner = httpx.Client(
+            base_url=base,
+            timeout=target.timeout,
+            verify=False,
+            follow_redirects=True,
+            headers=target.auth_headers,
+        )
+        guest = httpx.Client(
+            base_url=base, timeout=target.timeout, verify=False, follow_redirects=True
+        )
 
         project_id = self._create_project(owner, target, ctx)
         if project_id:
@@ -43,13 +51,17 @@ class StatefulE2EAgent(BaseAgent):
             events=ctx.events,
             findings=ctx.findings,
             summary={
-                "transitions": len([e for e in ctx.events if e.kind == EventKind.TRANSITION]),
+                "transitions": len(
+                    [e for e in ctx.events if e.kind == EventKind.TRANSITION]
+                ),
                 "project_id": project_id,
             },
         )
 
     def _create_project(self, client, target, ctx) -> Optional[str]:
-        ev = ctx.transition(self.name, "owner -> create-project", detail="POST /projects")
+        ev = ctx.transition(
+            self.name, "owner -> create-project", detail="POST /projects"
+        )
         try:
             r = client.post("/projects", json={"name": "medusa-e2e"})
             if r.status_code >= 500:
@@ -57,47 +69,98 @@ class StatefulE2EAgent(BaseAgent):
                 return None
             if r.status_code >= 400:
                 return None
-            pid = (r.json().get("id") if r.headers.get("content-type", "").startswith("application/json") else None)
+            pid = (
+                r.json().get("id")
+                if r.headers.get("content-type", "").startswith("application/json")
+                else None
+            )
             return str(pid) if pid else "1"
         except httpx.HTTPError as e:
-            ctx.finding(self.name, Severity.HIGH, "Create project failed", str(e), "POST /projects")
+            ctx.finding(
+                self.name,
+                Severity.HIGH,
+                "Create project failed",
+                str(e),
+                "POST /projects",
+            )
             return None
 
     def _upload(self, client, target, ctx, pid: str) -> None:
-        ev = ctx.transition(self.name, "create-project -> upload", detail=f"POST /projects/{pid}/upload")
+        ev = ctx.transition(
+            self.name, "create-project -> upload", detail=f"POST /projects/{pid}/upload"
+        )
         try:
-            r = client.post(f"/projects/{pid}/upload", files={"file": ("evil.txt", b"<script>alert(1)</script>")})
+            r = client.post(
+                f"/projects/{pid}/upload",
+                files={"file": ("evil.txt", b"<script>alert(1)</script>")},
+            )
             if r.status_code >= 500:
-                self._crash(ctx, self.name, f"POST /projects/{pid}/upload", ev.id, r.status_code)
+                self._crash(
+                    ctx, self.name, f"POST /projects/{pid}/upload", ev.id, r.status_code
+                )
         except httpx.HTTPError as e:
-            ctx.finding(self.name, Severity.HIGH, "Upload failed", str(e), f"POST /projects/{pid}/upload")
+            ctx.finding(
+                self.name,
+                Severity.HIGH,
+                "Upload failed",
+                str(e),
+                f"POST /projects/{pid}/upload",
+            )
 
     def _scan_and_wait(self, client, target, ctx, pid: str) -> None:
-        ev = ctx.transition(self.name, "upload -> ai-scan", detail=f"POST /projects/{pid}/scan")
+        ev = ctx.transition(
+            self.name, "upload -> ai-scan", detail=f"POST /projects/{pid}/scan"
+        )
         try:
             r = client.post(f"/projects/{pid}/scan")
             if r.status_code >= 500:
-                self._crash(ctx, self.name, f"POST /projects/{pid}/scan", ev.id, r.status_code)
+                self._crash(
+                    ctx, self.name, f"POST /projects/{pid}/scan", ev.id, r.status_code
+                )
                 return
         except httpx.HTTPError as e:
-            ctx.finding(self.name, Severity.HIGH, "Scan trigger failed", str(e), f"POST /projects/{pid}/scan")
+            ctx.finding(
+                self.name,
+                Severity.HIGH,
+                "Scan trigger failed",
+                str(e),
+                f"POST /projects/{pid}/scan",
+            )
             return
 
         # poll for worker completion (stateful: job keeps running after request returns)
         for _ in range(10):
             try:
                 s = client.get(f"/projects/{pid}")
-                if s.status_code == 200 and s.headers.get("content-type", "").startswith("application/json"):
-                    if str(s.json().get("status", "")).lower() in ("done", "complete", "finished"):
-                        ctx.transition(self.name, "ai-scan -> worker-done", detail="GET /projects/{pid} -> done")
+                if s.status_code == 200 and s.headers.get(
+                    "content-type", ""
+                ).startswith("application/json"):
+                    if str(s.json().get("status", "")).lower() in (
+                        "done",
+                        "complete",
+                        "finished",
+                    ):
+                        ctx.transition(
+                            self.name,
+                            "ai-scan -> worker-done",
+                            detail="GET /projects/{pid} -> done",
+                        )
                         return
             except httpx.HTTPError:
                 pass
             time.sleep(0.3)
-        ctx.transition(self.name, "ai-scan -> worker-pending", detail="worker did not finish in poll window")
+        ctx.transition(
+            self.name,
+            "ai-scan -> worker-pending",
+            detail="worker did not finish in poll window",
+        )
 
     def _isolation_check(self, guest, target, ctx, pid: str) -> None:
-        ctx.transition(self.name, "guest -> access-owner-data", detail=f"GET /projects/{pid} (no auth)")
+        ctx.transition(
+            self.name,
+            "guest -> access-owner-data",
+            detail=f"GET /projects/{pid} (no auth)",
+        )
         try:
             r = guest.get(f"/projects/{pid}")
             if r.status_code < 400:
@@ -114,14 +177,24 @@ class StatefulE2EAgent(BaseAgent):
             pass
 
     def _delete_and_refresh(self, owner, target, ctx, pid: str) -> None:
-        ev = ctx.transition(self.name, "owner -> delete-project", detail=f"DELETE /projects/{pid}")
+        ev = ctx.transition(
+            self.name, "owner -> delete-project", detail=f"DELETE /projects/{pid}"
+        )
         try:
             r = owner.delete(f"/projects/{pid}")
             if r.status_code >= 500:
-                self._crash(ctx, self.name, f"DELETE /projects/{pid}", ev.id, r.status_code)
+                self._crash(
+                    ctx, self.name, f"DELETE /projects/{pid}", ev.id, r.status_code
+                )
                 return
         except httpx.HTTPError as e:
-            ctx.finding(self.name, Severity.HIGH, "Delete failed", str(e), f"DELETE /projects/{pid}")
+            ctx.finding(
+                self.name,
+                Severity.HIGH,
+                "Delete failed",
+                str(e),
+                f"DELETE /projects/{pid}",
+            )
             return
         # refresh: deleted resource should be gone
         try:

@@ -91,7 +91,9 @@ def render_graph(console: Console, graph: RuntimeGraph | None) -> None:
 def render_root_causes(console: Console, report: MedusaReport) -> None:
     if not report.root_causes:
         return
-    console.print(f"\n[bold]Root Cause Analysis[/] ({len(report.root_causes)} failure(s))")
+    console.print(
+        f"\n[bold]Root Cause Analysis[/] ({len(report.root_causes)} failure(s))"
+    )
     for rc in report.root_causes:
         console.print(f"  [red]{rc.failure_id}[/] {rc.explanation}")
 

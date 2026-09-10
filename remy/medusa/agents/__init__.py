@@ -26,25 +26,48 @@ class AgentContext:
         self.events.append(event)
         return event
 
-    def click(self, agent: str, target: str, parent: Optional[str] = None, **kw: object) -> Event:
-        return self.emit(Event.make(EventKind.CLICK, agent, target, parent_id=parent, **kw))
+    def click(
+        self, agent: str, target: str, parent: Optional[str] = None, **kw: object
+    ) -> Event:
+        return self.emit(
+            Event.make(EventKind.CLICK, agent, target, parent_id=parent, **kw)
+        )
 
     def navigate(self, agent: str, target: str, **kw: object) -> Event:
         return self.emit(Event.make(EventKind.NAVIGATE, agent, target, **kw))
 
-    def request(self, agent: str, target: str, parent: Optional[str] = None, **kw: object) -> Event:
-        return self.emit(Event.make(EventKind.REQUEST, agent, target, parent_id=parent, **kw))
-
-    def response(self, agent: str, target: str, parent: str, **kw: object) -> Event:
-        return self.emit(Event.make(EventKind.RESPONSE, agent, target, parent_id=parent, **kw))
-
-    def exception(self, agent: str, target: str, parent: Optional[str] = None, **kw: object) -> Event:
+    def request(
+        self, agent: str, target: str, parent: Optional[str] = None, **kw: object
+    ) -> Event:
         return self.emit(
-            Event.make(EventKind.EXCEPTION, agent, target, parent_id=parent, status=EventStatus.ERROR, **kw)
+            Event.make(EventKind.REQUEST, agent, target, parent_id=parent, **kw)
         )
 
-    def transition(self, agent: str, target: str, parent: Optional[str] = None, **kw: object) -> Event:
-        return self.emit(Event.make(EventKind.TRANSITION, agent, target, parent_id=parent, **kw))
+    def response(self, agent: str, target: str, parent: str, **kw: object) -> Event:
+        return self.emit(
+            Event.make(EventKind.RESPONSE, agent, target, parent_id=parent, **kw)
+        )
+
+    def exception(
+        self, agent: str, target: str, parent: Optional[str] = None, **kw: object
+    ) -> Event:
+        return self.emit(
+            Event.make(
+                EventKind.EXCEPTION,
+                agent,
+                target,
+                parent_id=parent,
+                status=EventStatus.ERROR,
+                **kw,
+            )
+        )
+
+    def transition(
+        self, agent: str, target: str, parent: Optional[str] = None, **kw: object
+    ) -> Event:
+        return self.emit(
+            Event.make(EventKind.TRANSITION, agent, target, parent_id=parent, **kw)
+        )
 
     def finding(
         self,

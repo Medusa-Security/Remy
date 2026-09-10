@@ -33,7 +33,11 @@ class Step:
 
 def load_workflow(path: str) -> list[Step]:
     p = Path(path)
-    data = yaml.safe_load(p.read_text(encoding="utf-8")) if p.suffix in (".yaml", ".yml") else json.loads(p.read_text())
+    data = (
+        yaml.safe_load(p.read_text(encoding="utf-8"))
+        if p.suffix in (".yaml", ".yml")
+        else json.loads(p.read_text())
+    )
     steps = []
     for s in data:
         steps.append(
@@ -49,9 +53,24 @@ def load_workflow(path: str) -> list[Step]:
 
 # Built-in negative invariants exercised when no workflow file is supplied.
 _DEFAULT_INVARIANTS = [
-    {"name": "access-dashboard-without-auth", "method": "GET", "path": "/dashboard", "expect_forbidden": True},
-    {"name": "delete-without-auth", "method": "DELETE", "path": "/project/1", "expect_forbidden": True},
-    {"name": "admin-without-auth", "method": "GET", "path": "/admin", "expect_forbidden": True},
+    {
+        "name": "access-dashboard-without-auth",
+        "method": "GET",
+        "path": "/dashboard",
+        "expect_forbidden": True,
+    },
+    {
+        "name": "delete-without-auth",
+        "method": "DELETE",
+        "path": "/project/1",
+        "expect_forbidden": True,
+    },
+    {
+        "name": "admin-without-auth",
+        "method": "GET",
+        "path": "/admin",
+        "expect_forbidden": True,
+    },
 ]
 
 
@@ -81,8 +100,12 @@ class WorkflowAgent(BaseAgent):
             events=ctx.events,
             findings=ctx.findings,
             summary={
-                "transitions": len([e for e in ctx.events if e.kind == EventKind.TRANSITION]),
-                "invariants_checked": len(_DEFAULT_INVARIANTS) if not self.workflow_path else len(steps),
+                "transitions": len(
+                    [e for e in ctx.events if e.kind == EventKind.TRANSITION]
+                ),
+                "invariants_checked": (
+                    len(_DEFAULT_INVARIANTS) if not self.workflow_path else len(steps)
+                ),
             },
         )
 
@@ -94,7 +117,9 @@ class WorkflowAgent(BaseAgent):
         headers = target.auth_headers if auth else {}
         json_body = action.get("json")
 
-        ctx.transition(self.name, f"{current} -> {step.state}", detail=f"{method} {path}")
+        ctx.transition(
+            self.name, f"{current} -> {step.state}", detail=f"{method} {path}"
+        )
         try:
             r = client.request(method, path, headers=headers, json=json_body)
             if step.expect_status and r.status_code != step.expect_status:

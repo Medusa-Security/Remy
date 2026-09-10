@@ -14,9 +14,10 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 _PY_IMPORT = re.compile(r"^\s*(?:import\s+([\w\.]+)|from\s+([\w\.]+)\s+import\s+)")
-_REL_IMPORT = re.compile(r"""from\s+['"]([.\w/]+)['"]|import\s+['"]([.\w/]+)['"]|require\(\s*['"]([.\w/]+)['"]\s*\)""")
+_REL_IMPORT = re.compile(
+    r"""from\s+['"]([.\w/]+)['"]|import\s+['"]([.\w/]+)['"]|require\(\s*['"]([.\w/]+)['"]\s*\)"""
+)
 
 _JS_EXTS = (".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs")
 
@@ -92,7 +93,9 @@ def _resolve_python(module: str, py_modules: dict[str, str]) -> str | None:
     return None
 
 
-def _index_python(path: Path, root: Path, py_modules: dict[str, str], graph: DependencyGraph) -> None:
+def _index_python(
+    path: Path, root: Path, py_modules: dict[str, str], graph: DependencyGraph
+) -> None:
     try:
         text = path.read_text(encoding="utf-8", errors="ignore")
     except OSError:
@@ -129,7 +132,10 @@ def _index_js(path: Path, root: Path, graph: DependencyGraph) -> None:
 
 def _resolve_relative(path: Path, spec: str) -> Path | None:
     base = path.parent / spec
-    candidates = [base.with_suffix(base.suffix + ext) for ext in ("", ".js", ".ts", ".jsx", ".tsx", ".json")]
+    candidates = [
+        base.with_suffix(base.suffix + ext)
+        for ext in ("", ".js", ".ts", ".jsx", ".tsx", ".json")
+    ]
     candidates.append(base / "index.js")
     candidates.append(base / "index.ts")
     for c in candidates:

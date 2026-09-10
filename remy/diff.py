@@ -40,9 +40,7 @@ def _git_diff_names(root: str, spec: str) -> list[str]:
     else:
         cmd = ["git", "diff", "--name-only", spec]
     try:
-        out = subprocess.run(
-            cmd, cwd=root, capture_output=True, text=True, timeout=30
-        )
+        out = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=30)
     except (subprocess.SubprocessError, OSError):
         return []
     if out.returncode != 0:

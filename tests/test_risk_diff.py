@@ -44,9 +44,17 @@ def test_dependents_are_transitive():
 
 def _f(fid, scanner, severity, file):
     return Finding(
-        id=fid, scanner=scanner, severity=severity, cwe=None, file=file,
-        line_start=1, line_end=1, title="X", description="d",
-        remediation_hint="", confidence=0.9,
+        id=fid,
+        scanner=scanner,
+        severity=severity,
+        cwe=None,
+        file=file,
+        line_start=1,
+        line_end=1,
+        title="X",
+        description="d",
+        remediation_hint="",
+        confidence=0.9,
     )
 
 

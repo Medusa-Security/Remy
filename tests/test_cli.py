@@ -66,7 +66,9 @@ class TestCliCommands:
 
         monkeypatch.setattr(
             "remy.cli._load_config_or_exit",
-            lambda: Config(provider="openai", model="gpt-4o", scan_defaults=ScanDefaults()),
+            lambda: Config(
+                provider="openai", model="gpt-4o", scan_defaults=ScanDefaults()
+            ),
         )
         result = CliRunner().invoke(main, ["risk", str(tmp_path)])
         assert result.exit_code == 0
@@ -84,7 +86,9 @@ class TestCliCommands:
 
         monkeypatch.setattr(
             "remy.cli._load_config_or_exit",
-            lambda: Config(provider="openai", model="gpt-4o", scan_defaults=ScanDefaults()),
+            lambda: Config(
+                provider="openai", model="gpt-4o", scan_defaults=ScanDefaults()
+            ),
         )
         result = CliRunner().invoke(main, ["scan", "--diff", str(tmp_path)])
         assert result.exit_code == 0

@@ -28,7 +28,14 @@ def _playwright_available() -> bool:
         return False
 
 
-_INVALID_INPUTS = ["", "💀" * 200, "../../etc/passwd", "'; DROP TABLE users;--", "a" * 5000, "-1"]
+_INVALID_INPUTS = [
+    "",
+    "💀" * 200,
+    "../../etc/passwd",
+    "'; DROP TABLE users;--",
+    "a" * 5000,
+    "-1",
+]
 
 
 class BrowserAgent(BaseAgent):
@@ -56,7 +63,10 @@ class BrowserAgent(BaseAgent):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
-            page.on("console", lambda m: console_errors.append(m.text) if m.type == "error" else None)
+            page.on(
+                "console",
+                lambda m: console_errors.append(m.text) if m.type == "error" else None,
+            )
             page.on("pageerror", lambda e: page_errors.append(str(e)))
 
             nav = ctx.navigate(self.name, target.base_url)
@@ -96,13 +106,17 @@ class BrowserAgent(BaseAgent):
                 break
             ev = None
             try:
-                el = page.locator("button, a[href], input[type=submit], [role=button]").nth(clicked)
+                el = page.locator(
+                    "button, a[href], input[type=submit], [role=button]"
+                ).nth(clicked)
                 label = html[:60]
                 ev = ctx.click(self.name, label)
                 el.click(timeout=3000)
                 clicked += 1
             except Exception as e:  # noqa: BLE001
-                ctx.exception(self.name, label, parent=ev.id if ev else None, detail=str(e))
+                ctx.exception(
+                    self.name, label, parent=ev.id if ev else None, detail=str(e)
+                )
 
     def _fill_forms(self, page, ctx) -> None:
         from ..events import Event, EventKind
@@ -116,7 +130,14 @@ class BrowserAgent(BaseAgent):
             value = _INVALID_INPUTS[i % len(_INVALID_INPUTS)]
             try:
                 fld = fields.nth(i)
-                ev = ctx.emit(Event.make(EventKind.FILL, self.name, f"field#{i}", detail=f"value={value!r}"))
+                ev = ctx.emit(
+                    Event.make(
+                        EventKind.FILL,
+                        self.name,
+                        f"field#{i}",
+                        detail=f"value={value!r}",
+                    )
+                )
                 fld.fill(str(value), timeout=2000)
             except Exception as e:  # noqa: BLE001
                 ctx.exception(self.name, f"field#{i}", parent=ev.id, detail=str(e))
@@ -124,7 +145,8 @@ class BrowserAgent(BaseAgent):
     def _walk_links(self, page, ctx, target) -> None:
         try:
             links = page.eval_on_selector_all(
-                "a[href^='/']", "els => els.slice(0, 40).map(e => e.getAttribute('href'))"
+                "a[href^='/']",
+                "els => els.slice(0, 40).map(e => e.getAttribute('href'))",
             )
         except Exception:  # noqa: BLE001
             links = []
@@ -133,7 +155,9 @@ class BrowserAgent(BaseAgent):
         for href in links:
             if walked >= self.max_links or not href:
                 break
-            full = (target.base_url.rstrip("/") + href) if href.startswith("/") else href
+            full = (
+                (target.base_url.rstrip("/") + href) if href.startswith("/") else href
+            )
             if full in seen:
                 continue
             seen.add(full)
@@ -163,6 +187,8 @@ class BrowserAgent(BaseAgent):
                 "console_errors": len(console_errors),
                 "page_errors": len(page_errors),
                 "clicks": len([e for e in ctx.events if e.kind == EventKind.CLICK]),
-                "navigations": len([e for e in ctx.events if e.kind == EventKind.NAVIGATE]),
+                "navigations": len(
+                    [e for e in ctx.events if e.kind == EventKind.NAVIGATE]
+                ),
             },
         )

@@ -18,7 +18,6 @@ from ..events import AgentResult, EventKind
 from ..target import MedusaTarget
 from remy.report.models import Severity
 
-
 _FUZZ_SCALARS = [
     None,
     [],
@@ -37,7 +36,18 @@ _FUZZ_SCALARS = [
     "null\0byte",
 ]
 
-_SENSITIVE_PATH_HINTS = ("login", "account", "admin", "profile", "me", "scan", "create", "delete", "user", "token")
+_SENSITIVE_PATH_HINTS = (
+    "login",
+    "account",
+    "admin",
+    "profile",
+    "me",
+    "scan",
+    "create",
+    "delete",
+    "user",
+    "token",
+)
 
 _LEAK_SIGNATURES = (
     "traceback (most recent call last)",
@@ -61,7 +71,9 @@ class ApiFuzzerAgent(BaseAgent):
     name = "api-fuzzer"
 
     def run(self, target: MedusaTarget, ctx: AgentContext) -> AgentResult:
-        endpoints = target.endpoints_from_spec() or [{"method": "GET", "path": "/", "body_props": []}]
+        endpoints = target.endpoints_from_spec() or [
+            {"method": "GET", "path": "/", "body_props": []}
+        ]
         errors = 0
         latencies: list[float] = []
 
@@ -84,7 +96,9 @@ class ApiFuzzerAgent(BaseAgent):
                 if _is_sensitive(path) and target.auth_token:
                     self._auth_bypass_probe(client, target, ctx, method, path)
                 errors += sum(
-                    1 for e in ctx.events if e.kind == EventKind.EXCEPTION and e.target.endswith(path)
+                    1
+                    for e in ctx.events
+                    if e.kind == EventKind.EXCEPTION and e.target.endswith(path)
                 )
 
         p95 = sorted(latencies)[int(len(latencies) * 0.95) - 1] if latencies else 0.0
@@ -104,16 +118,26 @@ class ApiFuzzerAgent(BaseAgent):
         best_latency = 0.0
         for value in _FUZZ_SCALARS:
             payload = {p: value for p in body_props} if body_props else None
-            req_ev = ctx.request(self.name, f"{method} {path}", detail=f"payload={value!r}")
+            req_ev = ctx.request(
+                self.name, f"{method} {path}", detail=f"payload={value!r}"
+            )
             t0 = time.perf_counter()
             try:
                 if method == "GET":
-                    r = client.get(path, params={"q": value} if value is not None else None)
+                    r = client.get(
+                        path, params={"q": value} if value is not None else None
+                    )
                 else:
                     r = client.request(method, path, json=payload)
                 dt = (time.perf_counter() - t0) * 1000
                 best_latency = max(best_latency, dt)
-                ctx.response(self.name, f"{method} {path}", parent=req_ev.id, detail=f"{r.status_code}", duration_ms=dt)
+                ctx.response(
+                    self.name,
+                    f"{method} {path}",
+                    parent=req_ev.id,
+                    detail=f"{r.status_code}",
+                    duration_ms=dt,
+                )
 
                 if r.status_code >= 500:
                     ctx.exception(
@@ -142,7 +166,9 @@ class ApiFuzzerAgent(BaseAgent):
                         cwe="CWE-209",
                         remediation="Return generic error messages; never leak internals to clients.",
                     )
-                elif method != "GET" and r.status_code == 200 and _looks_injection(value):
+                elif (
+                    method != "GET" and r.status_code == 200 and _looks_injection(value)
+                ):
                     ctx.finding(
                         scanner=self.name,
                         severity=Severity.MEDIUM,
@@ -165,10 +191,21 @@ class ApiFuzzerAgent(BaseAgent):
         return best_latency
 
     def _auth_bypass_probe(self, client, target, ctx, method, path) -> None:
-        req_ev = ctx.request(self.name, f"{method} {path} [no-auth]", detail="auth-bypass probe")
+        req_ev = ctx.request(
+            self.name, f"{method} {path} [no-auth]", detail="auth-bypass probe"
+        )
         try:
-            r = client.request(method, path, headers={}) if method == "GET" else client.request(method, path, headers={}, json={})
-            ctx.response(self.name, f"{method} {path}", parent=req_ev.id, detail=f"{r.status_code}")
+            r = (
+                client.request(method, path, headers={})
+                if method == "GET"
+                else client.request(method, path, headers={}, json={})
+            )
+            ctx.response(
+                self.name,
+                f"{method} {path}",
+                parent=req_ev.id,
+                detail=f"{r.status_code}",
+            )
             if r.status_code < 400:
                 ctx.finding(
                     scanner=self.name,
@@ -197,4 +234,6 @@ class ApiFuzzerAgent(BaseAgent):
 def _looks_injection(value) -> bool:
     if not isinstance(value, str):
         return False
-    return any(t in value for t in ("DROP TABLE", "<script", "../", "$gt", " OR ", "';"))
+    return any(
+        t in value for t in ("DROP TABLE", "<script", "../", "$gt", " OR ", "';")
+    )

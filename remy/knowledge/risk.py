@@ -16,8 +16,6 @@ from dataclasses import dataclass, field
 
 from remy.knowledge.dependencies import DependencyGraph
 
-
-
 SEVERITY_WEIGHT = {
     "CRITICAL": 10.0,
     "HIGH": 8.0,
