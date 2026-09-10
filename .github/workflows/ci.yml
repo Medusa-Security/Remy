@@ -22,13 +22,16 @@ jobs:
       - name: Install dev dependencies
         run: pip install -e ".[dev]"
 
+      - name: Install Ruff 0.15.20
+        run: pip install "ruff==0.15.20"
+
       - name: Verify Ruff version
         run: ruff --version
 
       - name: Run Ruff
         run: ruff check remy/
 
-      - name: Run Black
+      - name: Run Black (check mode)
         run: black --check remy/ tests/
 
   test:
@@ -84,22 +87,19 @@ jobs:
           respect_gitignore = true
           EOF
 
-          # Run secrets-only scan.
-          # Findings themselves do not fail this step;
-          # the JSON result is evaluated below.
+          # Secrets-only scan on the repo itself.
+          # Findings do not directly fail the scan command.
           remy scan . \
             --secrets-only \
             --format json \
             --output /tmp/remy-self-scan.json || true
 
-          # Fail only if CRITICAL secrets are found.
+          # Fail if CRITICAL secrets are found.
           python -c "
           import json
           import sys
 
-          with open('/tmp/remy-self-scan.json') as f:
-              data = json.load(f)
-
+          data = json.load(open('/tmp/remy-self-scan.json'))
           crit = data['summary']['critical']
 
           if crit > 0:
