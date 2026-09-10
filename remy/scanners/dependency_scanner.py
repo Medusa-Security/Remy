@@ -121,6 +121,126 @@ def _parse_pyproject_toml(content: str) -> list[tuple[str, str, int]]:
     return deps
 
 
+def _parse_package_lock_json(content: str) -> list[tuple[str, str, int]]:
+    """Parse package-lock.json packages/dependencies into (package, version, line_no) tuples."""
+    deps: list[tuple[str, str, int]] = []
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        return deps
+    lines = content.splitlines()
+    packages = data.get("packages", {})
+    if not packages:
+        packages = data.get("dependencies", {})
+    for path_key, info in packages.items():
+        if not isinstance(info, dict) or "version" not in info:
+            continue
+        pkg_name = path_key.split("node_modules/")[-1].strip()
+        if not pkg_name:
+            continue
+        ver = str(info["version"]).strip()
+        line_no = next(
+            (
+                i + 1
+                for i, line in enumerate(lines)
+                if f'"{pkg_name}"' in line or f'"node_modules/{pkg_name}"' in line
+            ),
+            1,
+        )
+        deps.append((pkg_name, ver, line_no))
+    return deps
+
+
+def _parse_poetry_lock(content: str) -> list[tuple[str, str, int]]:
+    """Parse poetry.lock [[package]] blocks into (package, version, line_no) tuples."""
+    deps: list[tuple[str, str, int]] = []
+    current_pkg = None
+    current_ver = None
+    pkg_line = 1
+    for line_no, line in enumerate(content.splitlines(), 1):
+        stripped = line.strip()
+        if stripped == "[[package]]":
+            if current_pkg and current_ver:
+                deps.append((current_pkg, current_ver, pkg_line))
+            current_pkg = None
+            current_ver = None
+            pkg_line = line_no
+            continue
+        m_name = re.match(r'^name\s*=\s*["\']([^"\']+)["\']', stripped)
+        if m_name:
+            current_pkg = m_name.group(1)
+        m_ver = re.match(r'^version\s*=\s*["\']([^"\']+)["\']', stripped)
+        if m_ver:
+            current_ver = m_ver.group(1)
+    if current_pkg and current_ver:
+        deps.append((current_pkg, current_ver, pkg_line))
+    return deps
+
+
+def _parse_uv_lock(content: str) -> list[tuple[str, str, int]]:
+    """Parse uv.lock [[package]] blocks into (package, version, line_no) tuples."""
+    return _parse_poetry_lock(content)
+
+
+def _parse_pipfile_lock(content: str) -> list[tuple[str, str, int]]:
+    """Parse Pipfile.lock default/develop sections into (package, version, line_no) tuples."""
+    deps: list[tuple[str, str, int]] = []
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        return deps
+    lines = content.splitlines()
+    for section in ("default", "develop"):
+        for pkg, info in data.get(section, {}).items():
+            if isinstance(info, dict) and "version" in info:
+                ver = re.sub(r"[^0-9\.]", "", str(info["version"])) or "*"
+                line_no = next(
+                    (i + 1 for i, line in enumerate(lines) if f'"{pkg}"' in line), 1
+                )
+                deps.append((pkg, ver, line_no))
+    return deps
+
+
+def _parse_yarn_lock(content: str) -> list[tuple[str, str, int]]:
+    """Parse yarn.lock into (package, version, line_no) tuples."""
+    deps: list[tuple[str, str, int]] = []
+    current_pkg = None
+    pkg_line = 1
+    for line_no, line in enumerate(content.splitlines(), 1):
+        if line and not line.startswith((" ", "\t", "#")) and ":" in line:
+            header = line.split(":", 1)[0].strip("\"'")
+            parts = header.split(",")[0].strip().rsplit("@", 1)
+            if len(parts) == 2 and parts[0]:
+                current_pkg = parts[0]
+                pkg_line = line_no
+            else:
+                current_pkg = None
+        elif current_pkg and line.strip().startswith("version "):
+            m = re.search(r'version\s+["\']?([^"\'\s]+)["\']?', line)
+            if m:
+                deps.append((current_pkg, m.group(1), pkg_line))
+                current_pkg = None
+    return deps
+
+
+def _parse_go_sum(content: str) -> list[tuple[str, str, int]]:
+    """Parse go.sum lines into (package, version, line_no) tuples."""
+    deps: list[tuple[str, str, int]] = []
+    seen = set()
+    for line_no, line in enumerate(content.splitlines(), 1):
+        m = re.match(r"^\s*([A-Za-z0-9_\-\./]+)\s+v([^\s/]+)", line)
+        if m:
+            pkg, ver = m.group(1), m.group(2)
+            key = f"{pkg}@{ver}"
+            if key not in seen:
+                seen.add(key)
+                deps.append((pkg, ver, line_no))
+    return deps
+
+
+OSV_BATCH_API_URL = "https://api.osv.dev/v1/querybatch"
+
+
 async def _query_osv(
     session: httpx.AsyncClient,
     pkg_name: str,
@@ -128,18 +248,7 @@ async def _query_osv(
     ecosystem: str,
     semaphore: asyncio.Semaphore,
 ) -> list[dict]:
-    """Query the OSV database for a specific package version.
-
-    Args:
-        session: Shared httpx async client.
-        pkg_name: Package name.
-        version: Package version string.
-        ecosystem: Ecosystem string (e.g., 'PyPI', 'npm', 'Go').
-        semaphore: Concurrency limiter.
-
-    Returns:
-        List of OSV vulnerability dicts.
-    """
+    """Query the OSV database for a specific package version."""
     if not version or version in ("*", "latest"):
         return []
     async with semaphore:
@@ -156,6 +265,49 @@ async def _query_osv(
     return []
 
 
+async def _query_osv_batch_chunk(
+    session: httpx.AsyncClient,
+    chunk: list[tuple[str, str, str]],
+    semaphore: asyncio.Semaphore,
+) -> list[list[dict]]:
+    """Query the OSV querybatch endpoint for up to 1000 packages at once."""
+    if not chunk:
+        return []
+    payload_queries = []
+    for pkg, ver, eco in chunk:
+        if not ver or ver in ("*", "latest"):
+            payload_queries.append({"package": {"name": pkg, "ecosystem": eco}})
+        else:
+            payload_queries.append(
+                {"package": {"name": pkg, "ecosystem": eco}, "version": ver}
+            )
+
+    async with semaphore:
+        try:
+            resp = await session.post(
+                OSV_BATCH_API_URL, json={"queries": payload_queries}, timeout=30.0
+            )
+            if resp.status_code == 200:
+                data = resp.json().get("results", [])
+                results = []
+                for idx, item in enumerate(data):
+                    if idx < len(chunk):
+                        pkg, ver, _ = chunk[idx]
+                        if not ver or ver in ("*", "latest"):
+                            results.append([])
+                        else:
+                            results.append(item.get("vulns", []))
+                    else:
+                        results.append([])
+                while len(results) < len(chunk):
+                    results.append([])
+                return results
+        except (httpx.RequestError, json.JSONDecodeError):
+            pass
+
+    return [[] for _ in chunk]
+
+
 class DependencyScanner(Scanner):
     """Scans dependency manifests for known vulnerabilities via OSV."""
 
@@ -167,6 +319,12 @@ class DependencyScanner(Scanner):
         "pyproject.toml": (_parse_pyproject_toml, "PyPI"),
         "package.json": (_parse_package_json, "npm"),
         "go.mod": (_parse_go_mod, "Go"),
+        "package-lock.json": (_parse_package_lock_json, "npm"),
+        "poetry.lock": (_parse_poetry_lock, "PyPI"),
+        "uv.lock": (_parse_uv_lock, "PyPI"),
+        "Pipfile.lock": (_parse_pipfile_lock, "PyPI"),
+        "yarn.lock": (_parse_yarn_lock, "npm"),
+        "go.sum": (_parse_go_sum, "Go"),
     }
 
     async def scan_file(
@@ -199,11 +357,26 @@ class DependencyScanner(Scanner):
         _seen_vuln_keys: set[str] = set()
 
         async with httpx.AsyncClient() as client:
-            tasks = [
-                _query_osv(client, pkg, ver, ecosystem, semaphore)
-                for pkg, ver, _ in deps
+            chunk_size = 1000
+            dep_tuples = [(pkg, ver, ecosystem) for pkg, ver, _ in deps]
+            chunks = [
+                dep_tuples[i : i + chunk_size]
+                for i in range(0, len(dep_tuples), chunk_size)
             ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            tasks = [
+                _query_osv_batch_chunk(client, chunk, semaphore) for chunk in chunks
+            ]
+            chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        results: list[list[dict]] = []
+        for res in chunk_results:
+            if isinstance(res, list):
+                results.extend(res)
+            else:
+                results.extend([[]] * chunk_size)
+        results = results[: len(deps)]
+        while len(results) < len(deps):
+            results.append([])
 
         {pkg: (ver, line_no) for pkg, ver, line_no in deps}
 

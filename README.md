@@ -28,6 +28,7 @@ Remy is the **finder and prompt-compiler**, not the editor. That makes it lightw
 - **Dependency scanner** — cross-references your packages against the OSV vulnerability database
 - **LLM logic-bug pass** (`--deep`) — sends code to your AI provider to catch race conditions, edge cases, and business logic flaws
 - **Multi-provider AI** — bring your own key for OpenRouter, Groq, OpenAI, Anthropic, xAI, NVIDIA NIM, or run fully local with Ollama
+- **Medusa dynamic agents** (`remy medusa`) — run autonomous browser exploration, workflow execution, API fuzzing, stateful E2E, and runtime tracing against a *live* app; findings feed a runtime graph, get root-caused, and regression-checked against a baseline
 - **Drop-in Fix Prompt** — output is a portable Markdown artifact you paste into Claude Code, Cursor, Windsurf, Copilot, or any other agent
 
 ---
@@ -154,6 +155,22 @@ remy scan --format json     # Machine-readable output
 remy scan --output FILE     # Write output to file
 remy prompt                 # View last scan's Fix Prompt
 remy prompt --copy          # Copy Fix Prompt to clipboard
+remy graph                  # Build the Knowledge Graph of findings
+remy graph --ask hotspots   # Which files are most at risk?
+remy graph --ask secrets    # All hardcoded secrets and where they leak
+remy graph --ask unauthenticated  # Exposed endpoints without auth
+remy graph --impact app.py  # Everything reachable from a file (blast radius)
+
+# Medusa — dynamic, multi-agent testing against a *running* app
+remy medusa --url https://app.test --agents all          # Run every dynamic agent
+remy medusa --url https://app.test --spec openapi.yaml   # Fuzz from an OpenAPI spec
+remy medusa --url https://app.test --agents api,e2e      # Pick agents
+remy medusa --url https://app.test --explain <event_id>  # Causal chain for a failure
+
+# Risk + PR-diff
+remy risk .                         # Rank findings: severity x reachability x blast-radius
+remy diff .                         # Show PR scope: changed files + dependents
+remy scan --diff                    # Scan only changed files + their dependents (CI)
 remy config                 # Run config wizard
 remy config show            # Print current config
 remy config set-provider    # Change provider/model
@@ -185,6 +202,10 @@ Remy exits with code `2` when Critical or High findings are present, making it e
 - [ ] PR diff scanning (scan only changed files)
 - [ ] HTML report output
 - [ ] Jira/Linear issue creation from findings
+- [x] **Knowledge Graph** (`remy graph`) — query findings as a file→finding→scanner→CWE→secret graph; supports `--ask hotspots|secrets|unauthenticated|by-scanner|summary` and `--impact <file>` blast-radius walks
+- [x] Dynamic agents (browser / API fuzzer / workflow / stateful E2E / runtime tracer) feeding the runtime graph, with root-cause + regression
+- [x] Risk scoring (`remy risk`) — severity × reachability × blast-radius from the merged dependency graph
+- [x] PR-diff mode (`remy scan --diff`, `remy diff`) — scan only changed files + transitive dependents
 
 ---
 

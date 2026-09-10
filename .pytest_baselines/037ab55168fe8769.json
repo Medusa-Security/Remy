@@ -1,0 +1,11 @@
+{
+  "target": "http://x",
+  "duration_seconds": 0.0,
+  "finding_counts": {
+    "CRITICAL": 0
+  },
+  "endpoints_covered": 0,
+  "p95_latency_ms": 100.0,
+  "error_count": 0,
+  "runs": 1
+}

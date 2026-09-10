@@ -71,3 +71,157 @@ def export_json(report: ScanReport, indent: int = 2) -> str:
     }
 
     return json.dumps(data, indent=indent, ensure_ascii=False)
+
+
+def export_sarif(report: ScanReport, indent: int = 2) -> str:
+    """Serialize a ScanReport to SARIF v2.1.0 format."""
+    rules = {}
+    results = []
+
+    for f in report.sorted_findings():
+        rule_id = (
+            f.cwe
+            if f.cwe and f.cwe != "CWE-Unknown"
+            else f"{f.scanner}:{f.title.split()[0]}"
+        )
+        if rule_id not in rules:
+            rules[rule_id] = {
+                "id": rule_id,
+                "name": f.title,
+                "shortDescription": {"text": f.title},
+                "fullDescription": {"text": f.description},
+                "help": {
+                    "text": f"{f.description}\n\nRemediation: {f.remediation_hint}"
+                },
+                "properties": {
+                    "tags": [f.scanner, f.cwe] if f.cwe else [f.scanner],
+                    "precision": "high" if f.confidence >= 0.8 else "medium",
+                },
+            }
+
+        level_map = {
+            "critical": "error",
+            "high": "error",
+            "medium": "warning",
+            "low": "note",
+            "info": "none",
+        }
+        sarif_level = level_map.get(f.severity.value.lower(), "warning")
+
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": sarif_level,
+                "message": {"text": f.title},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": f.file.replace("\\", "/")},
+                            "region": {
+                                "startLine": max(1, f.line_start),
+                                "endLine": max(1, f.line_end),
+                                "snippet": (
+                                    {"text": f.code_snippet} if f.code_snippet else {}
+                                ),
+                            },
+                        }
+                    }
+                ],
+                "properties": {
+                    "confidence": round(f.confidence, 3),
+                    "remediationHint": f.remediation_hint,
+                    "remyId": f.id,
+                },
+            }
+        )
+
+    sarif = {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "Remy",
+                        "informationUri": "https://github.com/remy-security/remy",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "results": results,
+            }
+        ],
+    }
+    return json.dumps(sarif, indent=indent, ensure_ascii=False)
+
+
+def export_gitlab_sast(report: ScanReport, indent: int = 2) -> str:
+    """Serialize a ScanReport to GitLab SAST report format v15.x."""
+    vulnerabilities = []
+    for f in report.sorted_findings():
+        gitlab_severity = f.severity.value.capitalize()
+        if gitlab_severity not in ("Critical", "High", "Medium", "Low", "Info"):
+            gitlab_severity = "Unknown"
+
+        identifiers = [
+            {
+                "type": "remy_finding_id",
+                "name": f.title,
+                "value": f.id,
+            }
+        ]
+        if f.cwe and f.cwe != "CWE-Unknown":
+            cwe_id = f.cwe.upper().replace("CWE-", "")
+            identifiers.append(
+                {
+                    "type": "cwe",
+                    "name": f.cwe,
+                    "value": cwe_id,
+                    "url": f"https://cwe.mitre.org/data/definitions/{cwe_id}.html",
+                }
+            )
+
+        vulnerabilities.append(
+            {
+                "id": f.id,
+                "category": "sast",
+                "name": f.title,
+                "description": f.description,
+                "severity": gitlab_severity,
+                "confidence": (
+                    "High"
+                    if f.confidence >= 0.8
+                    else ("Medium" if f.confidence >= 0.5 else "Low")
+                ),
+                "scanner": {"id": "remy", "name": "Remy Security Scanner"},
+                "location": {
+                    "file": f.file.replace("\\", "/"),
+                    "start_line": max(1, f.line_start),
+                    "end_line": max(1, f.line_end),
+                },
+                "identifiers": identifiers,
+                "solution": f.remediation_hint,
+            }
+        )
+
+    gitlab_data = {
+        "version": "15.0.0",
+        "vulnerabilities": vulnerabilities,
+        "scan": {
+            "analyzer": {
+                "id": "remy",
+                "name": "Remy Security Scanner",
+                "vendor": {"name": "Remy Security"},
+                "version": "1.0.0",
+            },
+            "scanner": {
+                "id": "remy",
+                "name": "Remy Security Scanner",
+                "version": "1.0.0",
+            },
+            "type": "sast",
+            "start_time": report.timestamp.isoformat(),
+            "end_time": report.timestamp.isoformat(),
+            "status": "success",
+        },
+    }
+    return json.dumps(gitlab_data, indent=indent, ensure_ascii=False)

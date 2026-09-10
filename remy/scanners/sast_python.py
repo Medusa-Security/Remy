@@ -63,6 +63,8 @@ class _RemyAstVisitor(ast.NodeVisitor):
         self.file_path = file_path
         self.findings: list[Finding] = []
         self._seen_ids: set[str] = set()
+        # Scope stack: each dict maps var name to taint status ("TAINTED", "LITERAL", "UNKNOWN")
+        self.scopes: list[dict[str, str]] = [{}]
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -70,6 +72,66 @@ class _RemyAstVisitor(ast.NodeVisitor):
         if 1 <= lineno <= len(self.source_lines):
             return self.source_lines[lineno - 1].rstrip()
         return ""
+
+    def _get_taint(self, node: ast.AST) -> str:
+        """Return taint status of an AST node: 'TAINTED', 'LITERAL', or 'UNKNOWN'."""
+        if isinstance(node, ast.Constant):
+            return "LITERAL"
+        if isinstance(node, ast.Name):
+            for scope in reversed(self.scopes):
+                if node.id in scope:
+                    return scope[node.id]
+        if isinstance(node, ast.JoinedStr):
+            # If any value inside f-string is tainted, whole string is tainted
+            for value in node.values:
+                if isinstance(value, ast.FormattedValue):
+                    if self._get_taint(value.value) == "TAINTED":
+                        return "TAINTED"
+            return "UNKNOWN"
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            left_t = self._get_taint(node.left)
+            right_t = self._get_taint(node.right)
+            if left_t == "TAINTED" or right_t == "TAINTED":
+                return "TAINTED"
+            if left_t == "LITERAL" and right_t == "LITERAL":
+                return "LITERAL"
+        if isinstance(node, ast.Call):
+            name = self._call_name(node)
+            USER_INPUT_SINKS = {
+                "request.args.get",
+                "request.form.get",
+                "request.get_json",
+                "request.json.get",
+                "request.get_data",
+                "request.headers.get",
+                "request.cookies.get",
+                "req.query.get",
+                "req.body.get",
+                "input",
+                "sys.stdin.read",
+            }
+            if name in USER_INPUT_SINKS:
+                return "TAINTED"
+        return "UNKNOWN"
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        scope: dict[str, str] = {}
+        # Check if function is a route handler (decorator like @app.route or @router.get)
+        is_route = any(
+            isinstance(dec, ast.Call)
+            and self._call_name(dec).split(".")[-1]
+            in ("route", "get", "post", "put", "delete", "patch")
+            for dec in node.decorator_list
+        )
+        for arg in node.args.args:
+            if arg.arg not in ("self", "cls"):
+                scope[arg.arg] = "TAINTED" if is_route else "UNKNOWN"
+        self.scopes.append(scope)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.visit_FunctionDef(node)  # type: ignore[arg-type]
 
     def _add(
         self,
@@ -139,18 +201,27 @@ class _RemyAstVisitor(ast.NodeVisitor):
         name = self._call_name(node)
         if name not in ("eval", "exec"):
             return
-        # Flag if argument is not a constant/literal
+        # Flag if argument is not a constant/literal and not known safe
         if node.args and not isinstance(node.args[0], ast.Constant):
+            taint = self._get_taint(node.args[0])
+            if taint == "LITERAL":
+                return
+            is_tainted = taint == "TAINTED"
             self._add(
                 node.lineno,
                 node.end_lineno or node.lineno,
-                f"Dangerous use of `{name}()` with dynamic argument",
-                f"`{name}()` is called with a non-literal argument. "
+                (
+                    f"Tainted Dataflow to `{name}()` — Remote Code Execution"
+                    if is_tainted
+                    else f"Dangerous use of `{name}()` with dynamic argument"
+                ),
+                f"`{name}()` is called with a {'user-controlled (tainted)' if is_tainted else 'non-literal'} argument. "
                 "If user input can influence this, it enables arbitrary code execution.",
                 f"Replace `{name}()` with a safe alternative. If dynamic execution is truly "
                 "required, use `ast.literal_eval()` for expressions or a whitelist approach.",
-                Severity.HIGH,
+                Severity.CRITICAL if is_tainted else Severity.HIGH,
                 "CWE-78",
+                confidence=0.95 if is_tainted else 0.85,
             )
 
     # ── Rule 2: pickle.loads / pickle.load ────────────────────────────────────
@@ -194,20 +265,29 @@ class _RemyAstVisitor(ast.NodeVisitor):
                 break
         if not shell_true:
             return
-        # Check if the first arg is not a plain constant
+        # Check if the first arg is not a plain constant or safe literal variable
         if node.args:
             first_arg = node.args[0]
             if not isinstance(first_arg, ast.Constant):
+                taint = self._get_taint(first_arg)
+                if taint == "LITERAL":
+                    return
+                is_tainted = taint == "TAINTED"
                 self._add(
                     node.lineno,
                     node.end_lineno or node.lineno,
-                    "Shell Injection — `subprocess` with `shell=True` and dynamic command",
-                    f"`{name}()` is called with `shell=True` and a non-literal command. "
+                    (
+                        "Tainted Dataflow to `subprocess` (`shell=True`) — OS Command Injection"
+                        if is_tainted
+                        else "Shell Injection — `subprocess` with `shell=True` and dynamic command"
+                    ),
+                    f"`{name}()` is called with `shell=True` and a {'user-controlled (tainted)' if is_tainted else 'non-literal'} command. "
                     "If user input is included, this allows OS command injection.",
                     "Pass a list of arguments instead of a string command. "
                     "Avoid `shell=True`. Use `shlex.quote()` if a shell string is unavoidable.",
                     Severity.CRITICAL,
                     "CWE-78",
+                    confidence=0.95 if is_tainted else 0.85,
                 )
 
     # ── Rule 4: SQL string concatenation ──────────────────────────────────────
@@ -393,6 +473,11 @@ class _RemyAstVisitor(ast.NodeVisitor):
 
     def visit_Assign(self, node: ast.Assign) -> None:
         """Rule 10: Hardcoded credentials assigned to sensitive variable names."""
+        val_taint = self._get_taint(node.value)
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                self.scopes[-1][target.id] = val_taint
+
         for target in node.targets:
             target_name = ""
             if isinstance(target, ast.Name):

@@ -6,6 +6,7 @@ class ScanDefaults(BaseModel):
     deep: bool = False
     max_file_size_kb: int = 1000
     respect_gitignore: bool = True
+    fail_on: str = "HIGH"
 
 
 class Config(BaseModel):

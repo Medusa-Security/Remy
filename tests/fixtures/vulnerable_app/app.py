@@ -17,7 +17,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 # [VULNERABILITY] Hardcoded API key — secrets scanner should catch this
-STRIPE_KEY = "FAKE_STRIPE_API_KEY"
+STRIPE_KEY = "sk_live_abcdefghijklmnopqrstuvwxyz"
 DB_PASSWORD = "supersecret123"
 
 # [VULNERABILITY] Hardcoded AWS credentials

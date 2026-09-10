@@ -98,6 +98,7 @@ def main(ctx: click.Context) -> None:
                     output=None,
                     no_prompt=False,
                     min_severity="INFO",
+                    fail_on=None,
                     config=cfg,
                 )
     else:
@@ -114,6 +115,7 @@ def main(ctx: click.Context) -> None:
             output=None,
             no_prompt=False,
             min_severity="INFO",
+            fail_on=None,
             config=cfg,
         )
 
@@ -137,7 +139,7 @@ def main(ctx: click.Context) -> None:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["text", "json"]),
+    type=click.Choice(["text", "json", "sarif", "gitlab"]),
     default="text",
     help="Output format (default: text)",
 )
@@ -154,6 +156,24 @@ def main(ctx: click.Context) -> None:
     default=False,
     help="Skip Fix Prompt generation (useful in CI)",
 )
+@click.option(
+    "--fail-on",
+    type=click.Choice(
+        ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "NONE"], case_sensitive=False
+    ),
+    default=None,
+    help="Fail CI gate (exit 2) on findings at or above this severity (default: HIGH)",
+)
+@click.option(
+    "--diff/--no-diff",
+    default=False,
+    help="PR-diff mode: scan only changed files + their transitive dependents",
+)
+@click.option(
+    "--base",
+    default="main",
+    help="Base ref used to compute the changed-file set for --diff",
+)
 def scan(
     path,
     deep,
@@ -165,11 +185,14 @@ def scan(
     output,
     min_severity,
     no_prompt,
+    fail_on,
+    diff,
+    base,
 ):
     """Scan a path for bugs and vulnerabilities.
 
     PATH defaults to the current working directory.
-    Exits with code 2 if Critical or High findings are present (CI gate).
+    Exits with code 2 if findings meet or exceed the fail-on threshold (CI gate).
     """
     cfg = _load_config_or_exit()
     use_deep = deep or cfg.scan_defaults.deep
@@ -184,8 +207,45 @@ def scan(
         output=output,
         no_prompt=no_prompt,
         min_severity=min_severity,
+        fail_on=fail_on,
+        diff=diff,
+        base=base,
         config=cfg,
     )
+
+
+def _build_report(path: str, config, deep: bool = False):
+    """Run the orchestrator and return a ScanReport without rendering/caching."""
+    from remy.scanners.orchestrator import ScanOrchestrator, ScanOptions
+
+    target_path = Path(path).resolve()
+    options = ScanOptions(
+        deep=deep,
+        secrets_only=False,
+        api_surface_only=False,
+        bypass_check_only=False,
+        deps_only=False,
+        max_file_size_kb=config.scan_defaults.max_file_size_kb,
+        respect_gitignore=config.scan_defaults.respect_gitignore,
+        min_severity="INFO",
+    )
+    orchestrator = ScanOrchestrator(config=config, options=options, console=console)
+    try:
+        return asyncio.run(orchestrator.run(str(target_path)))
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception as e:
+        console.print(f"[bold red]Scan failed:[/] {e}")
+        console.print(
+            "[dim]For a full traceback, run: python -m remy scan with REMY_DEBUG=1[/dim]"
+        )
+        import os
+
+        if os.environ.get("REMY_DEBUG"):
+            import traceback
+
+            traceback.print_exc()
+        sys.exit(1)
 
 
 def _run_scan(
@@ -199,6 +259,9 @@ def _run_scan(
     output,
     no_prompt,
     min_severity,
+    fail_on,
+    diff,
+    base,
     config,
 ):
     """Internal scan runner — shared by `remy` (default) and `remy scan`."""
@@ -221,6 +284,24 @@ def _run_scan(
         respect_gitignore=config.scan_defaults.respect_gitignore,
         min_severity=min_severity,
     )
+
+    if diff:
+        from remy.diff import changed_files, pr_scope
+        from remy.knowledge.dependencies import build_dependency_graph
+
+        changed = changed_files(target_path, base)
+        dep_graph = build_dependency_graph(target_path)
+        scope = pr_scope(changed, dep_graph)
+        if not scope:
+            console.print(
+                f"[yellow]No changed files vs '{base}' — diff scope is empty.[/yellow]"
+            )
+        else:
+            console.print(
+                f"[dim]PR-diff scope:[/dim] {len(changed)} changed -> "
+                f"{len(scope)} files (incl. dependents)"
+            )
+        options.only_paths = scope
 
     orchestrator = ScanOrchestrator(config=config, options=options, console=console)
 
@@ -250,6 +331,24 @@ def _run_scan(
             console.print(f"[green]JSON report written to[/] [bold]{output}[/]")
         else:
             click.echo(json_str)
+    elif fmt == "sarif":
+        from remy.report.json_export import export_sarif
+
+        sarif_str = export_sarif(report)
+        if output:
+            Path(output).write_text(sarif_str, encoding="utf-8")
+            console.print(f"[green]SARIF report written to[/] [bold]{output}[/]")
+        else:
+            click.echo(sarif_str)
+    elif fmt == "gitlab":
+        from remy.report.json_export import export_gitlab_sast
+
+        gitlab_str = export_gitlab_sast(report)
+        if output:
+            Path(output).write_text(gitlab_str, encoding="utf-8")
+            console.print(f"[green]GitLab SAST report written to[/] [bold]{output}[/]")
+        else:
+            click.echo(gitlab_str)
     else:
         reporter = TerminalReporter(console=console, target_path=str(target_path))
         reporter.render(report)
@@ -275,8 +374,20 @@ def _run_scan(
     # Cache findings for `remy prompt` regeneration
     _cache_report(report)
 
-    # CI gate: exit 2 if critical or high findings present
-    if report.critical_count > 0 or report.high_count > 0:
+    # CI gate: exit 2 if any finding meets or exceeds the fail_on threshold
+    gate_str = (fail_on or config.scan_defaults.fail_on or "HIGH").upper()
+    _sev_order = {
+        "CRITICAL": 0,
+        "HIGH": 1,
+        "MEDIUM": 2,
+        "LOW": 3,
+        "INFO": 4,
+        "NONE": 99,
+        "OFF": 99,
+    }
+    gate_order = _sev_order.get(gate_str, 1)
+
+    if any(f.severity.sort_order <= gate_order for f in report.findings):
         sys.exit(2)
 
 
@@ -353,6 +464,319 @@ def prompt(copy: bool, path: str) -> None:
                 f"[yellow]Could not copy to clipboard: {e}[/]\n"
                 "[dim]On Linux, install xclip or xsel. On Windows, check clipboard permissions.[/dim]"
             )
+
+
+# ── graph ──────────────────────────────────────────────────────────────────────
+
+
+@main.command()
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--deep", is_flag=True, help="Include the LLM logic-bug pass when building the graph")
+@click.option(
+    "--ask",
+    default=None,
+    type=click.Choice(
+        ["summary", "hotspots", "by-scanner", "unauthenticated", "secrets"], case_sensitive=False
+    ),
+    help="Run a built-in graph query instead of printing the full tree",
+)
+@click.option(
+    "--impact",
+    default=None,
+    help="Print everything reachable from a file path or finding id (the 'what breaks if I remove X' query)",
+)
+def graph(path: str, deep: bool, ask: str | None, impact: str | None) -> None:
+    """Build Remy's Knowledge Graph from a scan and query it.
+
+    Turns findings into a graph (file → finding → scanner → CWE → secret) and
+    lets you ask questions about risk, exposure, and blast radius.
+    """
+    from remy.knowledge.graph import KnowledgeGraph
+    from remy.knowledge import render as graph_render
+
+    cfg = _load_config_or_exit()
+    report = _build_report(path, cfg, deep=deep)
+    g = KnowledgeGraph.from_findings(report.findings, report.target_path)
+
+    if not g.nodes:
+        console.print("[yellow]No findings to graph. Run a scan first.[/yellow]")
+        return
+
+    if impact is not None:
+        graph_render.render_impact(console, g, impact)
+        return
+
+    if ask:
+        ask = ask.lower()
+        if ask == "summary":
+            graph_render.render_summary(console, g)
+        elif ask == "hotspots":
+            graph_render.render_hotspots(console, g)
+        elif ask == "by-scanner":
+            graph_render.render_by_scanner(console, g)
+        elif ask == "unauthenticated":
+            graph_render.render_unauthenticated(console, g)
+        elif ask == "secrets":
+            graph_render.render_secrets(console, g)
+        return
+
+    graph_render.render_tree(console, g)
+    console.print(
+        "\n[dim]Queries:[/dim] [bold color(220)]remy graph --ask hotspots[/bold color(220)]"
+        " [dim]·[/dim] [bold color(220)]--ask secrets[/bold color(220)]"
+        " [dim]·[/dim] [bold color(220)]--impact <file>[/bold color(220)]"
+    )
+
+
+# ── diff ──────────────────────────────────────────────────────────────────────
+
+
+@main.command()
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--base", default="main", help="Base ref to diff changed files against")
+def diff(path: str, base: str) -> None:
+    """Show the PR test surface: changed files + their transitive dependents."""
+    from remy.diff import changed_files, pr_scope
+    from remy.knowledge.dependencies import build_dependency_graph
+
+    target = Path(path).resolve()
+    changed = changed_files(target, base)
+    dep_graph = build_dependency_graph(target)
+    scope = pr_scope(changed, dep_graph)
+
+    if not changed:
+        console.print(
+            f"[yellow]No changed files vs '{base}'.[/yellow] "
+            "Commit changes or pass a different --base."
+        )
+        return
+
+    console.print(
+        f"[bold color(220)]PR-diff scope[/] vs [bold]{base}[/] -> "
+        f"{len(changed)} changed, {len(scope)} to scan\n"
+    )
+    for f in sorted(changed):
+        deps = dep_graph.dependents(f)
+        extra = f"  [dim](+{len(deps)} dependent(s))[/dim]" if deps else ""
+        label = Path(f).relative_to(target) if str(f).startswith(str(target)) else f
+        console.print(f"  [bold yellow]M[/] {label}{extra}")
+
+
+# ── risk ──────────────────────────────────────────────────────────────────────
+
+
+@main.command()
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--deep", is_flag=True, help="Include the LLM logic-bug pass when scoring")
+@click.option("--url", default=None, help="Optional live app URL; folds runtime reachability into scores")
+def risk(path: str, deep: bool, url: str | None) -> None:
+    """Rank findings by risk: severity x reachability x blast-radius.
+
+    Builds the dependency graph, scores every finding (a CRITICAL on a public
+    endpoint that 40 modules import outranks an isolated INFO), and prints the
+    ranked list so you know what to fix first.
+    """
+    from remy.knowledge.dependencies import build_dependency_graph
+    from remy.knowledge.risk import score_findings
+    from remy.knowledge.render import render_risk
+
+    cfg = _load_config_or_exit()
+    report = _build_report(path, cfg, deep=deep)
+    target = Path(path).resolve()
+
+    dep_graph = build_dependency_graph(target)
+    findings = list(report.findings)
+    public_endpoints: set[str] = set()
+
+    if url:
+        from remy.medusa import MedusaOrchestrator, MedusaTarget
+
+        target_obj = MedusaTarget.from_spec_file(url, auth_token=None)
+        mreport = MedusaOrchestrator(baseline_dir=".remy/medusa/baselines").run(
+            target_obj, agents=["api", "trace"], regression=False
+        )
+        findings.extend(mreport.findings)
+        if mreport.graph:
+            public_endpoints = {
+                n.label for n in mreport.graph.nodes.values() if n.kind == "ENDPOINT"
+            }
+
+    risk_report = score_findings(findings, dep_graph, public_endpoints)
+    render_risk(console, risk_report)
+
+
+# ── medusa ──────────────────────────────────────────────────────────────────────
+
+
+@main.command()
+@click.option("--url", required=True, help="Base URL of the running app to test")
+@click.option("--spec", default=None, help="OpenAPI spec (YAML/JSON) describing the API surface")
+@click.option(
+    "--agents",
+    default="all",
+    help="Comma-separated agents: browser,workflow,api,e2e,trace (or 'all')",
+)
+@click.option("--workflow", default=None, help="Workflow YAML/JSON for the workflow agent")
+@click.option("--token", default=None, help="Auth token injected as a Bearer header")
+@click.option("--baseline/--no-baseline", default=True, help="Compare against / save regression baseline")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    help="Output format",
+)
+@click.option("--output", default=None, help="Write JSON report to file")
+@click.option(
+    "--explain",
+    default=None,
+    help="Show the causal chain for a failure event id (from the run output)",
+)
+def medusa(url, spec, agents, workflow, token, baseline, fmt, output, explain):
+    """Run the Medusa dynamic agents against a live app.
+
+    Autonomous browser exploration, workflow execution, API fuzzing,
+    stateful E2E, and runtime tracing are orchestrated into one run, merged
+    into a runtime graph, root-caused, and regression-checked.
+    """
+    from remy.medusa import MedusaOrchestrator, MedusaTarget
+    from remy.medusa.json_export import report_to_dict as _report_to_dict
+    from remy.medusa.render import render_report
+
+    target = MedusaTarget.from_spec_file(url, spec, auth_token=token)
+    orchestrator = MedusaOrchestrator(workflow_path=workflow)
+
+    try:
+        agent_list = [a.strip() for a in agents.split(",") if a.strip()]
+        report = orchestrator.run(target, agents=agent_list, regression=baseline)
+    except ValueError as e:
+        console.print(f"[bold red]{e}[/]")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Medusa run failed:[/] {e}")
+        sys.exit(1)
+
+    if explain:
+        for rc in report.root_causes:
+            if rc.failure_id == explain:
+                console.print(rc.explanation)
+                for step in rc.chain:
+                    console.print(f"  - {step.kind.value} {step.target}")
+                return
+        console.print(f"[yellow]No root cause recorded for '{explain}'.[/yellow]")
+        return
+
+    if fmt == "json":
+        data = _report_to_dict(report)
+        if output:
+            Path(output).write_text(_json_dump(data), encoding="utf-8")
+            console.print(f"[green]Medusa JSON report written to[/] [bold]{output}[/]")
+        else:
+            click.echo(_json_dump(data))
+        return
+
+    render_report(console, report)
+
+
+def _json_dump(data: dict) -> str:
+    import json
+
+    return json.dumps(data, indent=2, default=str)
+
+
+# ── init-ci ───────────────────────────────────────────────────────────────────
+
+
+@main.command(name="init-ci")
+@click.option(
+    "--force", is_flag=True, help="Overwrite existing CI/pre-commit files if present"
+)
+def init_ci(force: bool) -> None:
+    """Generate GitHub Actions workflow and pre-commit hooks for CI/CD."""
+    github_dir = Path(".github") / "workflows"
+    github_dir.mkdir(parents=True, exist_ok=True)
+
+    workflow_path = github_dir / "remy-security.yml"
+    precommit_path = Path(".pre-commit-config.yaml")
+
+    workflow_content = """name: Remy AI Security Scanner
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Remy
+        run: |
+          python -m pip install --upgrade pip
+          pip install remy-security
+
+      - name: Run Remy Security Scan (SARIF Export)
+        run: |
+          remy scan --format sarif --output remy-results.sarif --no-prompt
+        continue-on-error: true
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: remy-results.sarif
+"""
+
+    precommit_content = """repos:
+  - repo: local
+    hooks:
+      - id: remy-security
+        name: Remy Security Scanner
+        entry: remy scan --secrets-only
+        language: system
+        pass_filenames: false
+        always_run: true
+"""
+
+    created = []
+    if not workflow_path.exists() or force:
+        workflow_path.write_text(workflow_content, encoding="utf-8")
+        created.append(str(workflow_path))
+    else:
+        console.print(
+            f"[yellow]Skipped {workflow_path} (already exists, use --force to overwrite)[/]"
+        )
+
+    if not precommit_path.exists() or force:
+        precommit_path.write_text(precommit_content, encoding="utf-8")
+        created.append(str(precommit_path))
+    else:
+        console.print(
+            f"[yellow]Skipped {precommit_path} (already exists, use --force to overwrite)[/]"
+        )
+
+    if created:
+        console.print(
+            Panel(
+                "[bold green]⚡ CI/CD Automation Setup Complete![/]\n\nGenerated files:\n"
+                + "\n".join(f"  • {f}" for f in created)
+                + "\n\n[dim]Commit these files to activate GitHub Code Scanning and local pre-commit hooks.[/dim]",
+                border_style="green",
+                title="[bold]Remy CI/CD[/]",
+            )
+        )
 
 
 # ── config ────────────────────────────────────────────────────────────────────

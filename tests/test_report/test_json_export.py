@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 
 from remy.report.models import Finding, Severity, ScanReport
-from remy.report.json_export import export_json
+from remy.report.json_export import export_json, export_sarif, export_gitlab_sast
 from remy.utils.hashing import fingerprint_finding
 
 
@@ -97,3 +97,22 @@ class TestJsonExport:
         data = json.loads(export_json(report))
         assert data["findings"] == []
         assert data["summary"]["total"] == 0
+
+    def test_sarif_export_is_valid(self):
+        report = make_report()
+        sarif_str = export_sarif(report)
+        sarif = json.loads(sarif_str)
+        assert sarif["version"] == "2.1.0"
+        assert len(sarif["runs"]) == 1
+        assert sarif["runs"][0]["tool"]["driver"]["name"] == "Remy"
+        assert len(sarif["runs"][0]["results"]) == 1
+        assert sarif["runs"][0]["results"][0]["ruleId"] == "CWE-89"
+
+    def test_gitlab_sast_export_is_valid(self):
+        report = make_report()
+        gitlab_str = export_gitlab_sast(report)
+        gitlab = json.loads(gitlab_str)
+        assert gitlab["version"] == "15.0.0"
+        assert len(gitlab["vulnerabilities"]) == 1
+        assert gitlab["vulnerabilities"][0]["severity"] == "High"
+        assert gitlab["vulnerabilities"][0]["scanner"]["id"] == "remy"

@@ -41,6 +41,7 @@ class ScanOptions:
     max_file_size_kb: int = 1000  # Maximum file size to scan
     respect_gitignore: bool = True  # Honor .gitignore / .remyignore
     min_severity: str = "INFO"  # Minimum severity to include in results
+    only_paths: Optional[set] = None  # If set, scan only these resolved paths (PR-diff mode)
 
 
 class ScanOrchestrator:
@@ -121,6 +122,11 @@ class ScanOrchestrator:
             max_file_size_kb=self.options.max_file_size_kb,
         )
         file_paths = list(walker.walk())
+
+        if self.options.only_paths:
+            allowed = {str(Path(p).resolve()) for p in self.options.only_paths}
+            file_paths = [p for p in file_paths if str(p.resolve()) in allowed]
+
         total_files = len(file_paths)
 
         if total_files == 0:
@@ -135,13 +141,17 @@ class ScanOrchestrator:
                 scanners_used=[],
             )
 
-        # ── 2. Read file contents ─────────────────────────────────────────────
+        # ── 2. Read file contents & initialize suppression filter ─────────────
+        from remy.utils.ignore import SuppressionFilter
+
+        suppression_filter = SuppressionFilter.load(target_path)
         file_data: list[tuple[Path, str, str | None]] = []
         for p in file_paths:
             try:
                 content = p.read_text(encoding="utf-8", errors="ignore")
                 language = FileWalker.get_language(p)
                 file_data.append((p, content, language))
+                suppression_filter.register_file_content(p, content)
             except OSError:
                 continue
 
@@ -198,6 +208,10 @@ class ScanOrchestrator:
         unique_findings = [
             f for f in unique_findings if f.severity.sort_order <= _min_order
         ]
+
+        # ── 5c. Apply suppression filter (.remyignore & inline comments) ──────
+        if self.options.respect_gitignore:
+            unique_findings = suppression_filter.filter_findings(unique_findings)
 
         # ── 6. Sort: CRITICAL first, then by file, then by line ───────────────
         sorted_findings = sorted(

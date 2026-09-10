@@ -49,7 +49,7 @@ def _redact_secret(text: str) -> str:
 
     # Redact string literals that look like secrets (≥20 chars, alphanumeric+symbols)
     return re.sub(
-        r"""(?<=['"])[A-Za-z0-9+/=_\-]{20,}(?=['"])""",
+        r"""(?<=['"])[A-Za-z0-9+/=_\-]{16,}(?=['"])""",
         _redact_match,
         text,
     )
@@ -59,7 +59,8 @@ def _format_finding(finding: Finding, index: int) -> str:
     """Format a single finding into Markdown."""
     sev_label = SEV_LABELS[finding.severity]
     lines = []
-    lines.append(f"### [{sev_label}] {finding.title}")
+    lines.append(f"<!-- remy-finding-start: {finding.id} -->")
+    lines.append(f"### {index}. [{sev_label}] {finding.title}")
     lines.append(
         f"**File:** `{finding.file}`, lines {finding.line_start}–{finding.line_end}  "
     )
@@ -75,10 +76,15 @@ def _format_finding(finding: Finding, index: int) -> str:
     if finding.code_snippet:
         safe_snippet = _redact_secret(finding.code_snippet)
         lines.append("")
-        lines.append("```")
+        lines.append(
+            "```python"
+            if finding.file.endswith(".py")
+            else ("```javascript" if finding.file.endswith((".js", ".ts")) else "```")
+        )
         lines.append(safe_snippet)
         lines.append("```")
 
+    lines.append(f"<!-- remy-finding-end: {finding.id} -->")
     lines.append("")
     return "\n".join(lines)
 
@@ -104,6 +110,12 @@ def _build_header(
         "You are an AI coding agent. Fix the following issues in this codebase.",
         "Apply minimal, targeted changes. Preserve existing behavior and style.",
         "After each fix, briefly note what was changed and why.",
+        "",
+        "### Agent Guardrails & Rules of Engagement",
+        "1. **No breaking changes:** Preserve public API signatures, routes, and data models unless explicitly instructed.",
+        "2. **Check dataflow across boundaries:** Before changing function arguments or return types, inspect callers across the project.",
+        "3. **Secrets & Credentials:** Never hardcode dummy or replacement tokens in production files. Always read from environment variables (`os.environ`, `.env`).",
+        "4. **Maintain Test Coverage:** Ensure existing unit and e2e tests continue to pass after fixing vulnerabilities.",
         "",
         "---",
         "",
